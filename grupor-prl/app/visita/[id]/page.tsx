@@ -25,7 +25,7 @@ export default function VisitaPage({ params }: { params: Promise<{ id: string }>
         setGenerando(true);
         setError('');
 
-        const res = await fetch('api/generar-documento', {
+        const res = await fetch('/api/generar-documento', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ visita_id: id }),

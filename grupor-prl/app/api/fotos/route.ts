@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = supabaseAdmin();
-    const extension = file.name.split('.').pop || 'jpg';
+    const extension = file.name.split('.').pop() || 'jpg';
     const nombreArchivo = `${tecnicoId}/${Date.now()}-${preguntaId ?? 'general'}.${extension}`;
 
     const arrayBuffer = await file.arrayBuffer();

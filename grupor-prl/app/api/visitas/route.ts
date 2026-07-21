@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     } = body;
 
     if (!empresa_nombre || !sector) {
-        return NextResponse.json({ error: 'Faltan campos obligastorios' }, { status: 400 });
+        return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 });
     }
 
     const supabase = supabaseAdmin();
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
             respuestas,
             fotos,
             observaciones_generales,
-            estoad: 'pendiente',
+            estado: 'pendiente',
         })
         .select('id')
         .single();

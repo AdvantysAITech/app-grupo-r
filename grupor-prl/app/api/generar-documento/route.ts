@@ -115,6 +115,7 @@ export async function POST(req: NextRequest) {
         await supabase
             .from('documentos')
             .update({ estado: 'error', error_msg: err.message ?? 'Error desconocido' })
+            .eq('id', docInsertado.id);
 
         await supabase.from('visitas').update({ estado: 'error' }).eq('id', visita_id);
 
