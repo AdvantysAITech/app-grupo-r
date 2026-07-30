@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
 /**
- * GET /api/plantillas?tipo_visita=inicial|revision|extraordinaria
+ * GET /api/plantillas?tipo_visita=inicial|revision
  *
  * Devuelve los tipos de documento que aplican al multiselect de la
  * Pantalla 1, filtrados por tipo de visita, leyendo el registro de
@@ -11,18 +11,15 @@ import { supabaseAdmin } from "@/lib/supabase";
 export async function GET(req: NextRequest) {
   const tipoVisita = req.nextUrl.searchParams.get("tipo_visita");
 
-  if (!tipoVisita || !["inicial", "revision", "extraordinaria"].includes(tipoVisita)) {
+  if (!tipoVisita || !["inicial", "revision"].includes(tipoVisita)) {
     return NextResponse.json(
-      { error: "tipo_visita debe ser inicial, revision o extraordinaria" },
+      { error: "tipo_visita debe ser inicial o revision" },
       { status: 400 }
     );
   }
 
   const supabase = supabaseAdmin();
 
-  // "extraordinaria" no tiene columna propia todavía: de momento se trata
-  // igual que "inicial" (documento completo). Ajustar aqui el dia que se
-  // defina una regla propia para visitas extraordinarias.
   const columna = tipoVisita === "revision" ? "aplica_revision" : "aplica_inicial";
 
   const { data, error } = await supabase

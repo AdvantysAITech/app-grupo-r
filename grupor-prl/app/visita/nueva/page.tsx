@@ -18,7 +18,7 @@ type Plantilla = {
   nombre_visible: string;
 };
 
-type TipoVisita = "inicial" | "revision" | "extraordinaria";
+type TipoVisita = "inicial" | "revision";
 
 // Sectores del checklist multisector. Ajustar si cambia la lista real
 // de Checklist_Base_PRL_Multisector.md
@@ -210,7 +210,6 @@ export default function NuevaVisitaPage() {
             [
               { value: "inicial", label: "Inicial" },
               { value: "revision", label: "Revisión" },
-              { value: "extraordinaria", label: "Extraordinaria" },
             ] as { value: TipoVisita; label: string }[]
           ).map((opcion) => (
             <button

@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Faltan campos obligatorios" }, { status: 400 });
   }
 
-  if (!["inicial", "revision", "extraordinaria"].includes(tipo_visita)) {
+  if (!["inicial", "revision"].includes(tipo_visita)) {
     return NextResponse.json({ error: "tipo_visita inválido" }, { status: 400 });
   }
 
