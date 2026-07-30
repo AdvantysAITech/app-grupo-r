@@ -84,9 +84,13 @@ export default function NuevaVisitaPage() {
   }, [tipoVisita]);
 
   const sugerencias = useMemo(() => {
-    if (busquedaEmpresa.length < 2) return [];
+    if (busquedaEmpresa.length === 0) {
+      // Sin texto todavía: muestra el listado completo cargado (recortado
+      // para no reventar el DOM si hay cientos de empresas)
+      return empresas.slice(0, 50);
+    }
     const q = busquedaEmpresa.toLowerCase();
-    return empresas.filter((e) => e.nombre.toLowerCase().includes(q)).slice(0, 8);
+    return empresas.filter((e) => e.nombre.toLowerCase().includes(q)).slice(0, 50);
   }, [busquedaEmpresa, empresas]);
 
   function seleccionarEmpresa(empresa: Empresa) {
@@ -117,12 +121,29 @@ export default function NuevaVisitaPage() {
     setErrorEnvio(null);
 
     try {
-      // Se guarda en sessionStorage para que la Pantalla 2 (checklist) la recupere.
-      // La visita en si (fila en Supabase) se crea al confirmar la Pantalla 2,
-      // no aqui - en esta pantalla solo se recopilan las decisiones iniciales.
+      const res = await fetch("/api/visitas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          empresa: empresaSeleccionada,
+          tipo_visita: tipoVisita,
+          sector,
+          documentos_seleccionados: documentosSeleccionados,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrorEnvio(data.error || "No se pudo crear la visita");
+        return;
+      }
+
+      // La Pantalla 2 recupera el visita_id de aqui para subir fotos/audio
+      // ligados a esta visita concreta.
       sessionStorage.setItem(
         "visita_seleccion",
         JSON.stringify({
+          visita_id: data.id,
           empresa: empresaSeleccionada,
           tipo_visita: tipoVisita,
           sector,
