@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       sector,
       tipo_visita,
       documentos_seleccionados,
-      status: "pendiente_checklist",
+      estado: "pendiente_checklist",
     })
     .select("id")
     .single();

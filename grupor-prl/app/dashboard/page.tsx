@@ -9,14 +9,14 @@ export default async function DashboardPage() {
     interface Visita {
         id: string,
         empresa_nombre: string,
-        estado: string,
+        status: string,
         created_at: string;
     }
 
     const supabase = supabaseAdmin();
     const { data } = await supabase
         .from('visitas')
-        .select('id, empresa_nombre, estado, created_at')
+        .select('id, empresa_nombre, status, created_at')
         .eq('tecnico_id', tecnicoId)
         .order('created_at', { ascending: false });
 
@@ -54,7 +54,7 @@ export default async function DashboardPage() {
                   </p>
                 </div>
                 <span className="text-xs font-semibold px-2 py-1 rounded-full bg-gray-100">
-                  {v.estado}
+                  {v.status}
                 </span>
               </div>
             </a>

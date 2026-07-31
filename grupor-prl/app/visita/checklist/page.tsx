@@ -155,7 +155,7 @@ export default function ChecklistVisitaPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "No se pudo enviar la visita");
       sessionStorage.removeItem("visita_seleccion");
-      setEnviado(true);
+      router.push(`/visita/${visita.visita_id}/revision`);
     } catch (err: any) {
       setErrorEnvio(err.message);
     } finally {

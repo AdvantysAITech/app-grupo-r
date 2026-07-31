@@ -59,7 +59,7 @@ export async function PATCH(
     .select("storage_path")
     .eq("visita_id", id);
 
-  await supabase.from("visitas").update({ notas }).eq("id", id);
+  await supabase.from("visitas").update({ notas, status: "generando" }).eq("id", id);
 
   // URLs firmadas (7 dias) para que n8n pueda descargar fotos/audio
   const fotosConUrl = await Promise.all(
