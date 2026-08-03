@@ -30,6 +30,7 @@ const SECTORES = [
   { value: "construccion", label: "Construcción" },
   { value: "agroalimentario", label: "Agroalimentario" },
   { value: "industrial_almacen", label: "Industrial / Almacén" },
+  { value: "otro", label: "Otro (especificar)" },
 ];
 
 export default function NuevaVisitaPage() {
@@ -48,6 +49,10 @@ export default function NuevaVisitaPage() {
 
   // ---------- Sector ----------
   const [sector, setSector] = useState<string>("");
+  const [sectorOtro, setSectorOtro] = useState<string>("");
+  // Valor real que se envia al backend: el texto libre si se eligio "Otro",
+  // o el value normal del desplegable en cualquier otro caso.
+  const sectorFinal = sector === "otro" ? sectorOtro.trim() : sector;
 
   // ---------- Documentos (multiselect) ----------
   const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
@@ -101,7 +106,9 @@ export default function NuevaVisitaPage() {
     // técnico puede cambiarlo si no coincide con la lista de sectores
     if (!sector) {
       const actividadLower = (empresa.actividad || "").toLowerCase();
-      const match = SECTORES.find((s) => actividadLower.includes(s.label.toLowerCase().split(" ")[0]));
+      const match = SECTORES.filter((s) => s.value !== "otro").find((s) =>
+        actividadLower.includes(s.label.toLowerCase().split(" ")[0])
+      );
       if (match) setSector(match.value);
     }
   }
@@ -113,7 +120,7 @@ export default function NuevaVisitaPage() {
   }
 
   const puedeContinuar =
-    empresaSeleccionada !== null && sector !== "" && documentosSeleccionados.length > 0;
+    empresaSeleccionada !== null && sectorFinal !== "" && documentosSeleccionados.length > 0;
 
   async function continuar() {
     if (!puedeContinuar) return;
@@ -127,7 +134,7 @@ export default function NuevaVisitaPage() {
         body: JSON.stringify({
           empresa: empresaSeleccionada,
           tipo_visita: tipoVisita,
-          sector,
+          sector: sectorFinal,
           documentos_seleccionados: documentosSeleccionados,
         }),
       });
@@ -146,7 +153,7 @@ export default function NuevaVisitaPage() {
           visita_id: data.id,
           empresa: empresaSeleccionada,
           tipo_visita: tipoVisita,
-          sector,
+          sector: sectorFinal,
           documentos_seleccionados: documentosSeleccionados,
         })
       );
@@ -243,6 +250,17 @@ export default function NuevaVisitaPage() {
             </option>
           ))}
         </select>
+        {sector === "otro" && (
+          <input
+            type="text"
+            className={styles.input}
+            placeholder="Escribe el sector (ej. Peluquería, Taller mecánico...)"
+            value={sectorOtro}
+            onChange={(e) => setSectorOtro(e.target.value)}
+            style={{ marginTop: "8px" }}
+            autoFocus
+          />
+        )}
       </section>
 
       {/* ---------- Documentos a generar ---------- */}

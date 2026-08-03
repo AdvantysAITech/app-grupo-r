@@ -51,6 +51,11 @@ export default function RevisionChecklistPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [enviado, setEnviado] = useState(false);
 
+  // Secciones cuyo bloque de "campos ya confirmados por la IA" está desplegado.
+  // Por defecto todo lo confirmado permanece oculto: solo se ve lo que necesita revisión.
+  const [seccionesExpandidas, setSeccionesExpandidas] = useState<Set<string>>(new Set());
+  const [puestosExpandido, setPuestosExpandido] = useState(false);
+
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -90,6 +95,15 @@ export default function RevisionChecklistPage() {
               }
         ),
       };
+    });
+  }
+
+  function toggleSeccionExpandida(seccionId: string) {
+    setSeccionesExpandidas((prev) => {
+      const next = new Set(prev);
+      if (next.has(seccionId)) next.delete(seccionId);
+      else next.add(seccionId);
+      return next;
     });
   }
 
@@ -190,9 +204,13 @@ export default function RevisionChecklistPage() {
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold">Revisar checklist</h1>
-          {totalPendientes > 0 && (
+          {totalPendientes > 0 ? (
             <span className="text-xs font-semibold px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">
               {totalPendientes} campo{totalPendientes !== 1 ? "s" : ""} por revisar
+            </span>
+          ) : (
+            <span className="text-xs font-semibold px-2 py-1 rounded-full bg-green-100 text-green-800">
+              ✓ Todo revisado por la IA
             </span>
           )}
         </div>
@@ -208,46 +226,127 @@ export default function RevisionChecklistPage() {
           </div>
         )}
 
-        {contenido.secciones.map((seccion) => (
-          <section key={seccion.id} className="bg-white rounded-xl shadow p-4">
-            <h2 className="font-semibold mb-3">{seccion.titulo}</h2>
-            <div className="space-y-4">
-              {seccion.campos.map((campo) => (
-                <CampoEditable
-                  key={campo.id}
-                  campo={campo}
-                  onChange={(cambios) => actualizarCampo(seccion.id, campo.id, cambios)}
-                />
-              ))}
-            </div>
-          </section>
-        ))}
+        {contenido.secciones.map((seccion) => {
+          const pendientes = seccion.campos.filter((c) => c.pendiente_revision);
+          const confirmados = seccion.campos.filter((c) => !c.pendiente_revision);
+          const expandida = seccionesExpandidas.has(seccion.id);
+          const totalmenteConfirmada = seccion.campos.length > 0 && pendientes.length === 0;
 
-        {contenido.puestos.length > 0 && (
-          <section className="bg-white rounded-xl shadow p-4">
-            <h2 className="font-semibold mb-3">Puestos de trabajo</h2>
-            <div className="space-y-4">
-              {contenido.puestos.map((puesto) => (
-                <div
-                  key={puesto.id}
-                  className={`border rounded-lg p-3 ${
-                    puesto.pendiente_revision ? "border-yellow-400 bg-yellow-50" : "border-gray-200"
-                  }`}
+          return (
+            <section key={seccion.id} className="bg-white rounded-xl shadow p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-semibold">{seccion.titulo}</h2>
+                {totalmenteConfirmada && (
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-green-700 whitespace-nowrap"
+                    onClick={() => toggleSeccionExpandida(seccion.id)}
+                  >
+                    ✓ {confirmados.length} confirmado{confirmados.length !== 1 ? "s" : ""} por la IA{" "}
+                    {expandida ? "▲" : "▼"}
+                  </button>
+                )}
+              </div>
+
+              {pendientes.length > 0 && (
+                <div className="space-y-4">
+                  {pendientes.map((campo) => (
+                    <CampoEditable
+                      key={campo.id}
+                      campo={campo}
+                      onChange={(cambios) => actualizarCampo(seccion.id, campo.id, cambios)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {pendientes.length > 0 && confirmados.length > 0 && (
+                <button
+                  type="button"
+                  className="text-xs text-gray-500 mt-3 underline block"
+                  onClick={() => toggleSeccionExpandida(seccion.id)}
                 >
-                  <p className="font-semibold text-sm">{puesto.nombre}</p>
-                  <p className="text-sm text-gray-600 mt-1">{puesto.descripcion_operativa}</p>
-                  {puesto.riesgos_detectados.length > 0 && (
-                    <ul className="list-disc list-inside text-sm mt-2 text-gray-700">
-                      {puesto.riesgos_detectados.map((r, i) => (
-                        <li key={i}>{r}</li>
-                      ))}
-                    </ul>
+                  {expandida ? "Ocultar" : "Ver"} {confirmados.length} campo
+                  {confirmados.length !== 1 ? "s" : ""} ya confirmado{confirmados.length !== 1 ? "s" : ""} por la IA
+                </button>
+              )}
+
+              {expandida && confirmados.length > 0 && (
+                <div
+                  className={`space-y-4 ${pendientes.length > 0 ? "mt-3 pt-3 border-t border-gray-100" : ""}`}
+                >
+                  {confirmados.map((campo) => (
+                    <CampoEditable
+                      key={campo.id}
+                      campo={campo}
+                      onChange={(cambios) => actualizarCampo(seccion.id, campo.id, cambios)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {seccion.campos.length === 0 && (
+                <p className="text-xs text-gray-400">Sin campos en esta sección.</p>
+              )}
+            </section>
+          );
+        })}
+
+        {contenido.puestos.length > 0 &&
+          (() => {
+            const puestosPendientes = contenido.puestos.filter((p) => p.pendiente_revision);
+            const puestosConfirmados = contenido.puestos.filter((p) => !p.pendiente_revision);
+
+            return (
+              <section className="bg-white rounded-xl shadow p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="font-semibold">Puestos de trabajo</h2>
+                  {puestosPendientes.length === 0 && puestosConfirmados.length > 0 && (
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-green-700 whitespace-nowrap"
+                      onClick={() => setPuestosExpandido((v) => !v)}
+                    >
+                      ✓ {puestosConfirmados.length} confirmado{puestosConfirmados.length !== 1 ? "s" : ""} por la IA{" "}
+                      {puestosExpandido ? "▲" : "▼"}
+                    </button>
                   )}
                 </div>
-              ))}
-            </div>
-          </section>
-        )}
+
+                {puestosPendientes.length > 0 && (
+                  <div className="space-y-4">
+                    {puestosPendientes.map((puesto) => (
+                      <PuestoCard key={puesto.id} puesto={puesto} />
+                    ))}
+                  </div>
+                )}
+
+                {puestosPendientes.length > 0 && puestosConfirmados.length > 0 && (
+                  <button
+                    type="button"
+                    className="text-xs text-gray-500 mt-3 underline block"
+                    onClick={() => setPuestosExpandido((v) => !v)}
+                  >
+                    {puestosExpandido ? "Ocultar" : "Ver"} {puestosConfirmados.length} puesto
+                    {puestosConfirmados.length !== 1 ? "s" : ""} ya confirmado
+                    {puestosConfirmados.length !== 1 ? "s" : ""} por la IA
+                  </button>
+                )}
+
+                {puestosExpandido && puestosConfirmados.length > 0 && (
+                  <div
+                    className={`space-y-4 ${
+                      puestosPendientes.length > 0 ? "mt-3 pt-3 border-t border-gray-100" : ""
+                    }`}
+                  >
+                    {puestosConfirmados.map((puesto) => (
+                      <PuestoCard key={puesto.id} puesto={puesto} />
+                    ))}
+                  </div>
+                )}
+              </section>
+            );
+          })()}
 
         {errorMsg && <p className="text-red-600 text-sm">{errorMsg}</p>}
 
@@ -268,6 +367,26 @@ export default function RevisionChecklistPage() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PuestoCard({ puesto }: { puesto: Puesto }) {
+  return (
+    <div
+      className={`border rounded-lg p-3 ${
+        puesto.pendiente_revision ? "border-yellow-400 bg-yellow-50" : "border-gray-200"
+      }`}
+    >
+      <p className="font-semibold text-sm">{puesto.nombre}</p>
+      <p className="text-sm text-gray-600 mt-1">{puesto.descripcion_operativa}</p>
+      {puesto.riesgos_detectados.length > 0 && (
+        <ul className="list-disc list-inside text-sm mt-2 text-gray-700">
+          {puesto.riesgos_detectados.map((r, i) => (
+            <li key={i}>{r}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
