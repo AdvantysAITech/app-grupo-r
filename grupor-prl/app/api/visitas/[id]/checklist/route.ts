@@ -45,6 +45,19 @@ export async function GET(
     return NextResponse.json({ estado: "generando", contenido: null });
   }
 
+  let contenidoParsed = checklist.contenido;
+  if (typeof contenidoParsed === "string") {
+    try {
+      contenidoParsed = JSON.parse(contenidoParsed);
+    } catch {
+      return NextResponse.json({
+        estado: "error",
+        contenido: null,
+        error_msg: "El checklist guardado no tiene un formato JSON válido.",
+      });
+    }
+  }
+
   return NextResponse.json(checklist);
 }
 

@@ -38,6 +38,30 @@ type ChecklistResponse = {
 const OPCIONES_SINO = ["Sí", "No", "N.A."];
 const OPCIONES_ESTADO = ["Correcto", "Deficiente", "No aplica"];
 
+function normalizarContenido(raw: any): ChecklistContenido {
+  const secciones: Seccion[] = Array.isArray(raw?.secciones)
+    ? raw.secciones.map((s: any) => ({
+        id: s?.id ?? "",
+        titulo: s?.titulo ?? "",
+        campos: Array.isArray(s?.campos) ? s.campos : [],
+      }))
+    : [];
+
+  const puestos: Puesto[] = Array.isArray(raw?.puestos)
+    ? raw.puestos.map((p: any) => ({
+        id: p?.id ?? "",
+        nombre: p?.nombre ?? "",
+        descripcion_operativa: p?.descripcion_operativa ?? "",
+        riesgos_detectados: Array.isArray(p?.riesgos_detectados) ? p.riesgos_detectados : [],
+        pendiente_revision: !!p?.pendiente_revision,
+      }))
+    : [];
+
+  const avisos: string[] = Array.isArray(raw?.avisos) ? raw.avisos : [];
+
+  return { secciones, puestos, avisos };
+}
+
 export default function RevisionChecklistPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -63,7 +87,7 @@ export default function RevisionChecklistPage() {
       const res = await fetch(`/api/visitas/${visitaId}/checklist`);
       const data: ChecklistResponse = await res.json();
       setEstado(data.estado);
-      if (data.contenido) setContenido(data.contenido);
+      if (data.contenido) setContenido(normalizarContenido(data.contenido));
       setCargando(false);
 
       if (data.estado === "generando" && !pollRef.current) {
@@ -149,8 +173,8 @@ export default function RevisionChecklistPage() {
   }
 
   const totalPendientes =
-    (contenido?.secciones.flatMap((s) => s.campos).filter((c) => c.pendiente_revision).length ?? 0) +
-    (contenido?.puestos.filter((p) => p.pendiente_revision).length ?? 0);
+    (contenido?.secciones?.flatMap((s) => s.campos).filter((c) => c.pendiente_revision).length ?? 0) +
+    (contenido?.puestos?.filter((p) => p.pendiente_revision).length ?? 0);
 
   if (cargando) {
     return <div className="p-6 text-center text-gray-500">Cargando checklist...</div>;
