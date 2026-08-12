@@ -1,3 +1,4 @@
+// grupor-prl/lib/documentos/sustituir-fotos.ts
 // Sustituye [[FOTO:id|pie]] por <img> real. html-to-docx ignora <figure>/<figcaption>
 // y <style> (solo respeta style="" inline), así que usamos <img> con width/height
 // explícitos + un <p> aparte para el pie.
@@ -6,7 +7,7 @@ export type MapaFotos = Record<string, { base64: string; mime: string }>;
 export type Dimensiones = Record<string, { width: number; height: number }>;
 
 const REGEX_MARCADOR = /\[\[FOTO:([a-zA-Z0-9_]+)(?:\|([^\]]*))?\]\]/g;
-const ANCHO_PX = 480; // ancho fijo de referencia en el documento
+const ANCHO_PX = 480;
 
 export function sustituirMarcadoresFoto(
   html: string,
