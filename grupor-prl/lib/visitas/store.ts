@@ -22,7 +22,7 @@ export type VisitaResumen = {
 };
 
 /** Foto con id estable: el mismo que usarán los marcadores [[FOTO:id|pie]] */
-export type FotoVisita = { id: string; nombre: string; mime: string; base64: string };
+export type FotoVisita = { id: string; nombre: string; mime: string; base64: string; width: number; height: number };
 
 /** Snapshot de la empresa tal como venía del dropdown de GHL al crear la visita. */
 export type EmpresaSnapshot = {

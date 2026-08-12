@@ -1,7 +1,10 @@
+// grupor-prl/next.config.ts
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  outputFileTracingIncludes: {
+    "/api/generar-documento": ["./docs/documentos/**/*"],
+  },
 };
 
 export default nextConfig;

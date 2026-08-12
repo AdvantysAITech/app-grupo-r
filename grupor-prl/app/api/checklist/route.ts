@@ -98,7 +98,12 @@ export async function POST(req: Request) {
     numFotos: body.fotos?.length ?? 0,
   });
 
-  const contenido: any[] = [{ type: "text", text: textoUsuario }];
+  type BloqueContenido =
+    | { type: "text"; text: string }
+    | { type: "image"; source: { type: "base64"; media_type: string; data: string } };
+
+  const contenido: BloqueContenido[] = [{ type: "text", text: textoUsuario }];
+
   for (const foto of body.fotos ?? []) {
     contenido.push({ type: "text", text: `IMAGEN ${foto.id}` });
     contenido.push({
@@ -133,9 +138,9 @@ export async function POST(req: Request) {
       throw new Error(`Anthropic respondió ${res.status}: ${detalle.slice(0, 500)}`);
     }
 
-    const data = await res.json();
+    const data: { stop_reason?: string; content?: Array<{ type: string; text?: string }> } = await res.json();
     truncada = data.stop_reason === "max_tokens";
-    const bloqueTexto = (data.content || []).find((b: any) => b.type === "text");
+    const bloqueTexto = (data.content ?? []).find((b) => b.type === "text");
     if (!bloqueTexto?.text) throw new Error("La respuesta de Claude no contiene texto.");
     respuestaIA = bloqueTexto.text;
   } catch (e) {

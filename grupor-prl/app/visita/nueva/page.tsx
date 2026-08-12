@@ -23,7 +23,7 @@ function leerComoBase64(file: Blob): Promise<string> {
 }
 
 /** Redimensiona el lado mayor a 1568px (límite recomendado para visión) */
-async function redimensionar(file: File): Promise<{ base64: string; mime: string }> {
+async function redimensionar(file: File): Promise<{ base64: string; mime: string; width: number; height: number }> {
   const bitmap = await createImageBitmap(file);
   const escala = Math.min(1, 1568 / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
@@ -31,7 +31,7 @@ async function redimensionar(file: File): Promise<{ base64: string; mime: string
   canvas.height = Math.round(bitmap.height * escala);
   canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   const blob: Blob = await new Promise((r) => canvas.toBlob((b) => r(b!), "image/jpeg", 0.85));
-  return { base64: await leerComoBase64(blob), mime: "image/jpeg" };
+  return { base64: await leerComoBase64(blob), mime: "image/jpeg", width: canvas.width, height: canvas.height };
 }
 
 export default function NuevaVisitaPage() {
@@ -70,9 +70,9 @@ export default function NuevaVisitaPage() {
     const nuevas: FotoVisita[] = [];
     for (const f of files) {
       if (fotos.length + nuevas.length >= MAX_FOTOS) break;
-      const { base64, mime } = await redimensionar(f);
+      const { base64, mime, width, height } = await redimensionar(f);
       const n = fotos.length + nuevas.length + 1;
-      nuevas.push({ id: `foto_${String(n).padStart(2, "0")}`, nombre: f.name, mime, base64 });
+      nuevas.push({ id: `foto_${String(n).padStart(2, "0")}`, nombre: f.name, mime, base64, width, height });
     }
     setFotos((prev) => [...prev, ...nuevas]);
     setProcesando(false);

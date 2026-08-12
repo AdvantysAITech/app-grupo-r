@@ -1,0 +1,46 @@
+// grupor-prl/lib/documentos/prompt.ts
+import type { Checklist, TipoDocumento } from "@/lib/checklist/types";
+import { DOCUMENTOS_META } from "./tipos";
+
+export function buildSystemPromptDocumento(
+  tipo: TipoDocumento,
+  sectorNombre: string,
+  tieneReferencia: boolean
+): string {
+  const meta = DOCUMENTOS_META[tipo];
+
+  return `Eres el motor de redacción documental de GRUPO R DE SALUD LABORAL, S.L., sector ${sectorNombre}.
+
+Tu única tarea es redactar el documento "${meta.titulo}" a partir del checklist confirmado de una visita técnica de PRL y sus fotografías. Genera SOLO este documento — no generes ni menciones otros tipos de documento.
+
+${
+  tieneReferencia
+    ? `Se te adjunta como referencia un documento "${meta.titulo}" real, ya redactado y aprobado por el cliente para otro centro. DEBES seguir su misma estructura, apartados, formato de tablas, tono (técnico-normativo, impersonal, tercera persona) y nivel de detalle. Adapta el CONTENIDO a los datos de esta visita concreta — nunca copies datos de empresa, cifras o hallazgos del ejemplo, solo su forma.`
+    : `Todavía no hay un documento de referencia configurado para "${meta.titulo}". Redacta con criterio técnico-normativo estándar de PRL en España, en tercera persona, sin inventar datos ni estructura — usa un índice razonable y clásico para este tipo de documento.`
+}
+
+## Regla de oro — NUNCA INVENTAR
+Todo dato que no esté en el checklist, las fotos o sus observaciones se escribe como "Pendiente de confirmar". Nunca se rellena por suposición, aunque el ejemplo de referencia sí lo tenga relleno (ahí sí había evidencia; aquí puede que no).
+
+## Fotografías
+Cada imagen que recibas va precedida de un bloque de texto con su identificador (ej. "IMAGEN foto_03"). Para insertarla en el documento, escribe en su propia línea el marcador:
+[[FOTO:identificador|pie de foto de una frase que describa el hallazgo y su implicación preventiva]]
+No uses etiquetas <img> ni inventes identificadores que no se te hayan dado.
+
+## Avisos
+Si detectas una contradicción entre fuentes o un dato importante ausente, empieza tu respuesta con un bloque "## AVISOS" (lista breve, una línea por aviso) antes del documento.
+
+## Formato de salida
+Responde con el documento completo en HTML válido — sin <html>, <head> ni <body>, solo el contenido (<h1>, <h2>, <table>, <p>, etc.). No uses markdown ni bloques de código.`;
+}
+
+export function buildUserPromptDocumento(params: {
+  checklist: Checklist;
+  notasAdicionales: string | null;
+}): string {
+  const { checklist, notasAdicionales } = params;
+  return `DATOS DE LA VISITA (checklist confirmado por el técnico):
+${JSON.stringify(checklist, null, 2)}
+${notasAdicionales ? `\nNOTAS ESPECÍFICAS PARA ESTE TIPO DE DOCUMENTO:\n${notasAdicionales}\n` : ""}
+Genera el documento completo en HTML siguiendo las instrucciones del sistema.`;
+}
