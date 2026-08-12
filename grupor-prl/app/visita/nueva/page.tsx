@@ -6,10 +6,10 @@ import Link from "next/link";
 import { SECTORES, DOCUMENTOS, SECTOR_OTROS } from "@/lib/sectores";
 import {
   guardarVisita, guardarDatosVisita,
-  type TipoDocumento, type FotoVisita,
+  type TipoDocumento, type FotoVisita, type TipoVisita,
 } from "@/lib/visitas/store";
 
-type Empresa = { id: string; nombre: string };
+type Empresa = { id: string; nombre: string; nif?: string; cnae?: string; direccion?: string; actividad?: string };
 
 const MAX_FOTOS = 20;
 
@@ -45,6 +45,8 @@ export default function NuevaVisitaPage() {
   const [docs, setDocs] = useState<TipoDocumento[]>([]);
   const [fotos, setFotos] = useState<FotoVisita[]>([]);
   const [notas, setNotas] = useState("");
+  const [numTrabajadores, setNumTrabajadores] = useState("");
+  const [tipoVisita, setTipoVisita] = useState<TipoVisita>("inicial");
   const [procesando, setProcesando] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
@@ -115,6 +117,17 @@ export default function NuevaVisitaPage() {
         id, fotos, notas,
         audioBase64: audio?.base64 ?? null,
         audioMime: audio?.mime ?? null,
+        empresa: {
+          ghlId: empresa.id,
+          nombre: empresa.nombre,
+          nif: empresa.nif || null,
+          cnae: empresa.cnae || null,
+          direccion: empresa.direccion || null,
+          actividad: empresa.actividad || null,
+        },
+        numTrabajadores: numTrabajadores.trim() ? Number(numTrabajadores) : null,
+        tipoVisita,
+        fecha: ahora.slice(0, 10),
       });
       await guardarVisita({
         id,
@@ -139,6 +152,7 @@ export default function NuevaVisitaPage() {
 
   const card: React.CSSProperties = { border: "1px solid #e5e7eb", borderRadius: 12, padding: "1.15rem", marginBottom: "1rem" };
   const label: React.CSSProperties = { display: "block", fontWeight: 600, marginBottom: "0.6rem", fontSize: "0.95rem" };
+  const inputStyle: React.CSSProperties = { width: "100%", padding: "0.6rem", borderRadius: 8, border: "1px solid #d1d5db" };
 
   return (
     <main style={{ maxWidth: 720, margin: "0 auto", padding: "2rem 1.25rem" }}>
@@ -149,7 +163,7 @@ export default function NuevaVisitaPage() {
         <label style={label} htmlFor="empresa">Empresa</label>
         {errorEmpresas && <p style={{ color: "#b91c1c", fontSize: "0.85rem" }}>{errorEmpresas}</p>}
         <select id="empresa" value={empresaId} onChange={(e) => setEmpresaId(e.target.value)}
-          disabled={!empresas} style={{ width: "100%", padding: "0.6rem", borderRadius: 8, border: "1px solid #d1d5db" }}>
+          disabled={!empresas} style={inputStyle}>
           <option value="">{empresas ? "Selecciona una empresa…" : "Cargando…"}</option>
           {empresas?.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
         </select>
@@ -157,35 +171,47 @@ export default function NuevaVisitaPage() {
 
       <section style={card}>
         <label style={label} htmlFor="sector">Sector</label>
-        <select id="sector" value={sector} onChange={(e) => setSector(e.target.value)}
-          style={{ width: "100%", padding: "0.6rem", borderRadius: 8, border: "1px solid #d1d5db" }}>
+        <select id="sector" value={sector} onChange={(e) => setSector(e.target.value)} style={inputStyle}>
           <option value="">Selecciona un sector…</option>
           {SECTORES.map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}
         </select>
 
         {sector === SECTOR_OTROS && (
           <div style={{ marginTop: "0.75rem" }}>
-            <input
-              type="text"
-              value={sectorOtro}
-              onChange={(e) => setSectorOtro(e.target.value)}
+            <input type="text" value={sectorOtro} onChange={(e) => setSectorOtro(e.target.value)}
               placeholder="Escribe la actividad de la empresa (ej. taller de carpintería metálica)"
-              maxLength={80}
-              autoFocus
-              style={{ width: "100%", padding: "0.6rem", borderRadius: 8, border: "1px solid #d1d5db" }}
-            />
+              maxLength={80} autoFocus style={inputStyle} />
             <p style={{ color: "#b45309", fontSize: "0.8rem", margin: "0.5rem 0 0" }}>
               Sin módulo sectorial: el checklist incluirá solo los bloques transversales.
               Sé específico, la descripción guía la generación de riesgos.
             </p>
           </div>
         )}
-
         {sector && sector !== SECTOR_OTROS && (
           <p style={{ color: "#6b7280", fontSize: "0.8rem", margin: "0.5rem 0 0" }}>
             Determina qué módulos del checklist se activan.
           </p>
         )}
+      </section>
+
+      <section style={card}>
+        <span style={label}>Datos de la visita</span>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.85rem" }}>
+          <div>
+            <label style={{ fontSize: "0.8rem", color: "#6b7280", display: "block", marginBottom: "0.3rem" }}>Nº de trabajadores</label>
+            <input type="number" min={0} value={numTrabajadores}
+              onChange={(e) => setNumTrabajadores(e.target.value)}
+              placeholder="Opcional" style={inputStyle} />
+          </div>
+          <div>
+            <label style={{ fontSize: "0.8rem", color: "#6b7280", display: "block", marginBottom: "0.3rem" }}>Tipo de visita</label>
+            <select value={tipoVisita} onChange={(e) => setTipoVisita(e.target.value as TipoVisita)} style={inputStyle}>
+              <option value="inicial">Inicial</option>
+              <option value="revision">Revisión</option>
+              <option value="extraordinaria">Extraordinaria</option>
+            </select>
+          </div>
+        </div>
       </section>
 
       <section style={card}>
@@ -225,7 +251,7 @@ export default function NuevaVisitaPage() {
         <span style={label}>Notas del técnico</span>
         <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={4}
           placeholder="Observaciones, incidencias, datos que no se ven en las fotos…"
-          style={{ width: "100%", padding: "0.6rem", borderRadius: 8, border: "1px solid #d1d5db", fontFamily: "inherit", resize: "vertical" }} />
+          style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical" }} />
       </section>
 
       <section style={card}>
