@@ -49,9 +49,12 @@ Añade una entrada en "avisos" cuando detectes: contradicción entre fuentes ("c
 
 ## Antes de responder, verifica
 El array "bloques" contiene exactamente 11 elementos con id "b1" a "b11" — cuenta antes de responder. Si te falta alguno, añádelo con "aplicable": false en vez de omitirlo.
+Todo "valor" de un item tipo "snp" es el string "si", "no" o "na" — nunca true/false.
 
 ## Formato de salida — MUY IMPORTANTE
 Responde ÚNICAMENTE con un objeto JSON válido, sin texto antes ni después, sin bloques de código markdown. Forma exacta:
+
+Para items de tipo "snp", el campo "valor" DEBE ser exactamente uno de los strings "si", "no" o "na" — NUNCA un booleano (true/false) ni ningún otro valor. Ejemplo correcto: "valor": "no". Ejemplo INCORRECTO: "valor": false.
 
 {
   "bloques": [ { "id": "b1", "titulo": "...", "aplicable": true, "items": [ { "id": "b1_...", "label": "...", "pregunta": "...", "tipo": "snp"|"texto"|"numero"|"seleccion"|"multiseleccion", "opciones": [...] (solo seleccion/multiseleccion), "valor": ..., "detalle_no": [...], "observaciones": "...", "obligatorio": true|false, "estado": "ia"|"pendiente", "fuente": ["foto_01","notas",...] } ], "observaciones_bloque": "..." } ],
