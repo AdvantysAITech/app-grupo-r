@@ -164,7 +164,7 @@ export async function POST(req: Request) {
       nif: body.empresa.nif,
       direccion_centro: body.empresa.direccion,
       actividad: body.empresa.actividad,
-      sector: body.sector,
+      sector: sectorNombre,
       num_trabajadores: body.numTrabajadores,
     },
   };
