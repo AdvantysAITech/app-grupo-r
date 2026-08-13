@@ -12,19 +12,15 @@ export const maxDuration = 60;
 type BodyEntrada = { visitaId: string; empresaNombre?: string };
 
 function gmailClient() {
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const key = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
-  const sender = process.env.GMAIL_SENDER_EMAIL;
-  if (!email || !key || !sender) {
-    throw new Error("Faltan GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY o GMAIL_SENDER_EMAIL en el entorno");
+  const clientId = process.env.GMAIL_CLIENT_ID;
+  const clientSecret = process.env.GMAIL_CLIENT_SECRET;
+  const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
+  if (!clientId || !clientSecret || !refreshToken) {
+    throw new Error("Faltan GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET o GMAIL_REFRESH_TOKEN en el entorno");
   }
-  const auth = new google.auth.JWT({
-    email,
-    key: key.replace(/\\n/g, "\n"),
-    scopes: ["https://www.googleapis.com/auth/gmail.send"],
-    subject: sender, // delegación de dominio: envía "como" este buzón real
-  });
-  return google.gmail({ version: "v1", auth });
+  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
+  oauth2Client.setCredentials({ refresh_token: refreshToken });
+  return google.gmail({ version: "v1", auth: oauth2Client });
 }
 
 export async function POST(req: Request) {

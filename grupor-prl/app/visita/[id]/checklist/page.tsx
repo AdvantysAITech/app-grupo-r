@@ -26,6 +26,11 @@ export default function ChecklistPage() {
   const [generando, setGenerando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState(false);
+  const [generandoDocs, setGenerandoDocs] = useState(false);
+  const [progresoDocs, setProgresoDocs] = useState<string[]>([]);
+  const [docsListos, setDocsListos] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [enviado, setEnviado] = useState(false);
 
   const generar = useCallback(async (v: VisitaResumen, d: DatosVisita) => {
     setGenerando(true);
@@ -108,16 +113,58 @@ export default function ChecklistPage() {
   }
 
   async function onConfirmar() {
-    if (!checklist || !visita) return;
+    if (!checklist || !visita || !datos) return;
     setConfirmando(true);
+    let confirmado: Checklist;
     try {
-      const confirmado = confirmarChecklist(checklist);
+      confirmado = confirmarChecklist(checklist);
       setChecklist(confirmado);
       await guardarChecklist({ id: visita.id, checklist: confirmado, avisosParseo, generadoEn: new Date().toISOString() });
       await actualizarEstadoVisita(visita.id, "generando");
-      alert("Checklist confirmado. La generación de documentos (Llamada 2) todavía no está implementada.");
     } finally {
       setConfirmando(false);
+    }
+
+    setGenerandoDocs(true);
+    setProgresoDocs([]);
+    let huboError = false;
+    for (const tipo of confirmado.documentos_solicitados) {
+      setProgresoDocs((p) => [...p, `Generando "${tipo}"…`]);
+      try {
+        const res = await fetch("/api/generar-documento", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ visitaId: visita.id, tipoDocumento: tipo, checklist: confirmado, fotos: datos.fotos }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`);
+        setProgresoDocs((p) => [...p.slice(0, -1), `✅ "${tipo}" generado${data.avisos?.length ? ` (avisos: ${data.avisos.join("; ")})` : ""}`]);
+      } catch (e) {
+        huboError = true;
+        setProgresoDocs((p) => [...p.slice(0, -1), `❌ "${tipo}" falló: ${e instanceof Error ? e.message : String(e)}`]);
+      }
+    }
+    setGenerandoDocs(false);
+    await actualizarEstadoVisita(visita.id, huboError ? "error" : "completada");
+    setDocsListos(!huboError);
+  }
+
+  async function onEnviarEmail() {
+    if (!visita) return;
+    setEnviando(true);
+    try {
+      const res = await fetch("/api/enviar-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visitaId: visita.id, empresaNombre: visita.empresaNombre }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`);
+      setEnviado(true);
+    } catch (e) {
+      setProgresoDocs((p) => [...p, `❌ Error enviando email: ${e instanceof Error ? e.message : String(e)}`]);
+    } finally {
+      setEnviando(false);
     }
   }
 
@@ -198,10 +245,24 @@ export default function ChecklistPage() {
         </section>
       )}
 
-      <button onClick={onConfirmar} disabled={!puedeConf || confirmando}
-        style={{ ...btnPrimario, width: "100%", marginTop: "1rem", opacity: puedeConf && !confirmando ? 1 : 0.5 }}>
-        {confirmando ? "Confirmando…" : puedeConf ? "Confirmar checklist" : `Faltan ${pendientes.length} campo(s) obligatorio(s)`}
+      <button onClick={onConfirmar} disabled={!puedeConf || confirmando || generandoDocs}
+        style={{ ...btnPrimario, width: "100%", marginTop: "1rem", opacity: puedeConf && !confirmando && !generandoDocs ? 1 : 0.5 }}>
+        {confirmando ? "Confirmando…" : generandoDocs ? "Generando documentos…" : puedeConf ? "Confirmar checklist" : `Faltan ${pendientes.length} campo(s) obligatorio(s)`}
       </button>
+
+      {progresoDocs.length > 0 && (
+        <div style={{ marginTop: "1rem", fontSize: "0.85rem", color: "#374151" }}>
+          {progresoDocs.map((p, i) => <div key={i} style={{ padding: "0.3rem 0" }}>{p}</div>)}
+        </div>
+      )}
+
+      {docsListos && !enviado && (
+        <button onClick={onEnviarEmail} disabled={enviando}
+          style={{ ...btnPrimario, width: "100%", marginTop: "0.75rem", background: "#1e8449", opacity: enviando ? 0.5 : 1 }}>
+          {enviando ? "Enviando…" : "Enviar documentos por email"}
+        </button>
+      )}
+      {enviado && <Aviso tipo="parseo">✅ Documentos enviados por email correctamente.</Aviso>}
     </main>
   );
 }
