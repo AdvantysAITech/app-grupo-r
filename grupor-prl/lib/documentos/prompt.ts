@@ -28,7 +28,7 @@ Cada imagen que recibas va precedida de un bloque de texto con su identificador 
 No uses etiquetas <img> ni inventes identificadores que no se te hayan dado.
 
 ## Avisos
-Si detectas una contradicción entre fuentes o un dato importante ausente, empieza tu respuesta con un bloque "## AVISOS" (lista breve, una línea por aviso) antes del documento.
+Si detectas una contradicción entre fuentes o un dato importante ausente, empieza tu respuesta con este bloque exacto (HTML válido, no markdown): <!--AVISOS--><ul><li>primer aviso</li><li>segundo aviso</li></ul><!--FIN_AVISOS--> — inmediatamente seguido del documento. Si no hay avisos que reportar, omite este bloque por completo y empieza directamente con el documento.
 
 ## Formato de salida
 Responde con el documento completo en HTML válido — sin <html>, <head> ni <body>, solo el contenido (<h1>, <h2>, <table>, <p>, etc.). No uses markdown ni bloques de código.`;
