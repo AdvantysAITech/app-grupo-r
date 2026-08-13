@@ -5,7 +5,7 @@ import { getTecnicoId } from "@/lib/auth";
 import { sustituirMarcadoresFoto, type MapaFotos, type Dimensiones } from "@/lib/documentos/sustituir-fotos";
 import { cargarReferencia } from "@/lib/documentos/referencia";
 import { buildSystemPromptDocumento, buildUserPromptDocumento } from "@/lib/documentos/prompt";
-import { DOCUMENTOS_META } from "@/lib/documentos/tipos";
+import { DOCUMENTOS_META, documentosDisponibles } from "@/lib/documentos/tipos";
 import { DOCUMENTOS_VALIDOS, type Checklist, type TipoDocumento } from "@/lib/checklist/types";
 
 export const runtime = "nodejs";
@@ -48,7 +48,15 @@ export async function POST(req: Request) {
 
   const meta = DOCUMENTOS_META[body.tipoDocumento];
   const sectorNombre = body.checklist.visita.empresa.sector;
-  const referencia = await cargarReferencia(meta.carpeta, body.checklist.visita.tipo);
+
+  if (!documentosDisponibles(body.checklist.visita.tipo).includes(body.tipoDocumento)) {
+  return NextResponse.json(
+    { error: `"${meta.titulo}" no está disponible para visitas de tipo "${body.checklist.visita.tipo}".` },
+    { status: 400 }
+  );
+}
+
+const referencia = await cargarReferencia(body.tipoDocumento, body.checklist.visita.tipo);
 
   const systemPrompt = buildSystemPromptDocumento(body.tipoDocumento, sectorNombre, !!referencia.pdfBase64);
   const userPrompt = buildUserPromptDocumento({ checklist: body.checklist, notasAdicionales: referencia.notas });

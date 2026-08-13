@@ -8,6 +8,7 @@ import {
   guardarVisita, guardarDatosVisita,
   type TipoDocumento, type FotoVisita, type TipoVisita,
 } from "@/lib/visitas/store";
+import { documentosDisponibles } from "@/lib/documentos/tipos";
 
 type Empresa = { id: string; nombre: string; nif?: string; cnae?: string; direccion?: string; actividad?: string };
 
@@ -49,6 +50,13 @@ export default function NuevaVisitaPage() {
   const [tipoVisita, setTipoVisita] = useState<TipoVisita>("inicial");
   const [procesando, setProcesando] = useState(false);
   const [guardando, setGuardando] = useState(false);
+
+  const documentosPermitidos = documentosDisponibles(tipoVisita);
+
+  useEffect(() => {
+    const permitidos = documentosDisponibles(tipoVisita);
+    setDocs((prev) => prev.filter((id) => permitidos.includes(id)));
+  }, [tipoVisita]);
 
   // --- audio ---
   const [grabando, setGrabando] = useState(false);
@@ -217,7 +225,7 @@ export default function NuevaVisitaPage() {
       <section style={card}>
         <span style={label}>Documentos a generar</span>
         <div style={{ display: "grid", gap: "0.5rem" }}>
-          {DOCUMENTOS.map((d) => (
+          {DOCUMENTOS.filter((d) => documentosPermitidos.includes(d.id)).map((d) => (
             <label key={d.id} style={{ display: "flex", gap: "0.6rem", alignItems: "center", cursor: "pointer" }}>
               <input type="checkbox" checked={docs.includes(d.id)}
                 onChange={(e) => setDocs((p) => e.target.checked ? [...p, d.id] : p.filter((x) => x !== d.id))} />

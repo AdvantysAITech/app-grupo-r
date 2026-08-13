@@ -9,6 +9,7 @@ import {
   type TipoDocumento, type TipoVisita, type Visita,
 } from "@/lib/checklist/types";
 import { nombreSector } from "@/lib/sectores";
+import { documentosDisponibles } from "@/lib/documentos/tipos";
 
 export const runtime = "nodejs";
 export const maxDuration = 120; // varias imágenes + JSON grande puede tardar
@@ -56,7 +57,8 @@ export async function POST(req: Request) {
   if (!body?.visitaId || !body?.empresa?.razonSocial) {
     return NextResponse.json({ error: "Faltan datos de la visita o la empresa" }, { status: 400 });
   }
-  const documentos = (body.documentosSolicitados ?? []).filter((d) => DOCUMENTOS_VALIDOS.includes(d));
+  const disponibles = documentosDisponibles(body.tipoVisita);
+  const documentos = (body.documentosSolicitados ?? []).filter((d) => DOCUMENTOS_VALIDOS.includes(d) && disponibles.includes(d));
   if (documentos.length === 0) {
     return NextResponse.json({ error: "No se ha seleccionado ningún documento válido" }, { status: 400 });
   }
