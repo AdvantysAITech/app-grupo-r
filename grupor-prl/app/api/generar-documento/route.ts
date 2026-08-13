@@ -114,12 +114,19 @@ const referencia = await cargarReferencia(body.tipoDocumento, body.checklist.vis
     );
   }
 
+  // --- Separar avisos del documento (Claude los devuelve dentro de <!--AVISOS-->...<!--FIN_AVISOS--> al principio) ---
+  const matchAvisos = htmlGenerado.match(/<!--AVISOS-->([\s\S]*?)<!--FIN_AVISOS-->/);
+  const avisosDocumento = matchAvisos
+    ? Array.from(matchAvisos[1].matchAll(/<li>([\s\S]*?)<\/li>/g)).map((m) => m[1].trim())
+    : [];
+  const htmlSinAvisos = htmlGenerado.replace(/<!--AVISOS-->[\s\S]*?<!--FIN_AVISOS-->/, "").trim();
+
   // --- Sustitución de marcadores de foto ---
   const mapaFotos: MapaFotos = Object.fromEntries((body.fotos ?? []).map((f) => [f.id, { base64: f.base64, mime: f.mime }]));
   const dimensiones: Dimensiones = Object.fromEntries(
     (body.fotos ?? []).filter((f) => f.width && f.height).map((f) => [f.id, { width: f.width!, height: f.height! }])
   );
-  const { html: htmlFinal, noEncontradas } = sustituirMarcadoresFoto(htmlGenerado, mapaFotos, dimensiones);
+  const { html: htmlFinal, noEncontradas } = sustituirMarcadoresFoto(htmlSinAvisos, mapaFotos, dimensiones);
 
   // --- Conversión a DOCX ---
   let documentoGenerado: ArrayBuffer | Blob;
@@ -152,6 +159,9 @@ const referencia = await cargarReferencia(body.tipoDocumento, body.checklist.vis
   return NextResponse.json({
     ok: true,
     path,
-    avisos: noEncontradas.length ? [`Marcadores sin foto correspondiente: ${noEncontradas.join(", ")}`] : [],
+    avisos: [
+      ...avisosDocumento,
+      ...(noEncontradas.length ? [`Marcadores sin foto correspondiente: ${noEncontradas.join(", ")}`] : []),
+    ],
   });
 }
