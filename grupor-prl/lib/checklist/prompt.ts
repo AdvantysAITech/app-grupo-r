@@ -30,7 +30,7 @@ Si no hay evidencia suficiente en fotos, audio o notas para un dato, el campo se
 Bloques transversales de referencia:
 ${guiaBloquesTexto()}
 
-Genera solo los bloques e items que tengan sentido para este centro concreto según la evidencia aportada; puedes omitir un bloque completo ("aplicable": false) si claramente no aplica (ej. B4 Productos químicos en una oficina sin ningún producto visible), y puedes añadir items adicionales si detectas algo relevante que no encaja en la guía. Ids de bloque: "b1".."b11". Ids de item: "{bloque}_{clave}" (ej. "b3_em05"), minúsculas, sin espacios ni acentos.
+Genera items solo para los bloques e items que tengan sentido para este centro concreto según la evidencia aportada, PERO el array "bloques" del JSON de salida DEBE CONTENER SIEMPRE los 11 bloques, de "b1" a "b11", sin excepción — ni uno menos. Para el bloque que claramente no aplique a este centro (ej. B4 Productos químicos en una oficina sin ningún producto visible, o B6 CAE si no hay contratas), inclúyelo igualmente con "aplicable": false, "items": [] y una frase breve en "observaciones_bloque" explicando por qué no aplica. NUNCA elimines un bloque del array — un bloque ausente del JSON es indistinguible de "el técnico se olvidó de revisarlo", y eso invalida la trazabilidad legal del documento. Puedes añadir items adicionales si detectas algo relevante que no encaja en la guía. Ids de bloque: "b1".."b11", los 11 siempre presentes. Ids de item: "{bloque}_{clave}" (ej. "b3_em05"), minúsculas, sin espacios ni acentos.
 
 ## Sector de esta visita: ${sectorNombre}
 Puntos de atención específicos a vigilar en fotos/audio/notas:
@@ -46,6 +46,9 @@ Cada imagen viene precedida de un bloque de texto con su identificador (ej. "IMA
 
 ## Avisos
 Añade una entrada en "avisos" cuando detectes: contradicción entre fuentes ("contradiccion"), dato importante que falta y bloquea el checklist ("dato_pendiente"), hallazgo relevante que solo aparece en audio ("hallazgo_audio"), o algo mencionado por el técnico que no encaja en ningún bloque ("fuera_checklist"). Cada aviso: "tipo", "texto", "refs".
+
+## Antes de responder, verifica
+El array "bloques" contiene exactamente 11 elementos con id "b1" a "b11" — cuenta antes de responder. Si te falta alguno, añádelo con "aplicable": false en vez de omitirlo.
 
 ## Formato de salida — MUY IMPORTANTE
 Responde ÚNICAMENTE con un objeto JSON válido, sin texto antes ni después, sin bloques de código markdown. Forma exacta:
