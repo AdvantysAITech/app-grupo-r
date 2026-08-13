@@ -50,13 +50,13 @@ export async function POST(req: Request) {
   const sectorNombre = body.checklist.visita.empresa.sector;
 
   if (!documentosDisponibles(body.checklist.visita.tipo).includes(body.tipoDocumento)) {
-  return NextResponse.json(
-    { error: `"${meta.titulo}" no está disponible para visitas de tipo "${body.checklist.visita.tipo}".` },
-    { status: 400 }
-  );
-}
+    return NextResponse.json(
+      { error: `"${meta.titulo}" no está disponible para visitas de tipo "${body.checklist.visita.tipo}".` },
+      { status: 400 }
+    );
+  }
 
-const referencia = await cargarReferencia(body.tipoDocumento, body.checklist.visita.tipo);
+  const referencia = await cargarReferencia(body.tipoDocumento, body.checklist.visita.tipo);
 
   const systemPrompt = buildSystemPromptDocumento(body.tipoDocumento, sectorNombre, !!referencia.pdfBase64);
   const userPrompt = buildUserPromptDocumento({ checklist: body.checklist, notasAdicionales: referencia.notas });
@@ -80,6 +80,7 @@ const referencia = await cargarReferencia(body.tipoDocumento, body.checklist.vis
 
   const modelo = process.env.ANTHROPIC_MODEL || "claude-opus-4-8";
   let htmlGenerado: string;
+  let truncado = false;
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -90,8 +91,7 @@ const referencia = await cargarReferencia(body.tipoDocumento, body.checklist.vis
       },
       body: JSON.stringify({
         model: modelo,
-        max_tokens: 16000,
-        temperature: 0.2,
+        max_tokens: 32000,
         system: systemBlocks,
         messages: [{ role: "user", content: contenido }],
       }),
@@ -102,7 +102,8 @@ const referencia = await cargarReferencia(body.tipoDocumento, body.checklist.vis
       throw new Error(`Anthropic respondió ${res.status}: ${detalle.slice(0, 500)}`);
     }
 
-    const data: { content?: Array<{ type: string; text?: string }> } = await res.json();
+    const data: { stop_reason?: string; content?: Array<{ type: string; text?: string }> } = await res.json();
+    truncado = data.stop_reason === "max_tokens";
     const bloqueTexto = (data.content ?? []).find((b) => b.type === "text");
     if (!bloqueTexto?.text) throw new Error("La respuesta de Claude no contiene texto.");
     htmlGenerado = bloqueTexto.text;
@@ -160,6 +161,7 @@ const referencia = await cargarReferencia(body.tipoDocumento, body.checklist.vis
     ok: true,
     path,
     avisos: [
+      ...(truncado ? [`⚠️ "${meta.titulo}" puede estar incompleto: la respuesta se cortó por longitud (max_tokens).`] : []),
       ...avisosDocumento,
       ...(noEncontradas.length ? [`Marcadores sin foto correspondiente: ${noEncontradas.join(", ")}`] : []),
     ],

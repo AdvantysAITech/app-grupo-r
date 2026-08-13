@@ -2,7 +2,7 @@
 const bcrypt = require("bcryptjs");
 
 const TECNICOS = [
-  { usuario: "admin", nombre: "admin", email: "admin@prl.com", password: "admin1234" },
+  { usuario: "admin", nombre: "admin", email: "alexorenga20@gmai.com", password: "admin1234" },
   // Añade aquí los técnicos reales: { usuario, nombre, email, password }
 ];
 

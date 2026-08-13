@@ -1,7 +1,4 @@
-// grupor-prl/lib/gemini.ts
-// Transcripción de audio con Gemini (Claude no acepta audio como input).
-
-export async function transcribirAudio(base64: string, mime: string): Promise<string> {
+export async function transcribirAudio(base64: string, mime: string, intento = 1): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("Falta GEMINI_API_KEY en el entorno");
 
@@ -31,6 +28,10 @@ export async function transcribirAudio(base64: string, mime: string): Promise<st
 
   if (!res.ok) {
     const detalle = await res.text().catch(() => "");
+    if (res.status === 503 && intento < 3) {
+      await new Promise((r) => setTimeout(r, 2000 * intento));
+      return transcribirAudio(base64, mime, intento + 1);
+    }
     throw new Error(`Gemini respondió ${res.status}: ${detalle.slice(0, 300)}`);
   }
 

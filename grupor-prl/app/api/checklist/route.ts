@@ -128,9 +128,8 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         model: modelo,
-        max_tokens: 16000,
-        temperature: 0.2,
-        system: systemPrompt,
+        max_tokens: 32000,
+        system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: contenido }],
       }),
     });
@@ -186,9 +185,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ checklist, avisosParseo: avisosFinal });
   } catch (e) {
     if (e instanceof ErrorChecklist) {
-      console.error("[checklist] Respuesta de la IA no parseable:", e.message, respuestaIA.slice(0, 1000));
+      console.error(`[checklist] Respuesta de la IA no parseable (truncada=${truncada}):`, e.message, respuestaIA.slice(0, 1000));
       return NextResponse.json(
-        { error: "La IA no devolvió un checklist válido. Puedes reintentar.", detalle: e.message },
+        {
+          error: truncada
+            ? "La respuesta de la IA se cortó por longitud (max_tokens) antes de completar el JSON. Sube max_tokens o reduce el número de fotos."
+            : "La IA no devolvió un checklist válido. Puedes reintentar.",
+          detalle: e.message,
+        },
         { status: 502 }
       );
     }
