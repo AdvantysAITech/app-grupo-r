@@ -48,7 +48,7 @@ export async function POST(req: Request) {
 
   const meta = DOCUMENTOS_META[body.tipoDocumento];
   const sectorNombre = body.checklist.visita.empresa.sector;
-  const referencia = await cargarReferencia(meta.carpeta);
+  const referencia = await cargarReferencia(meta.carpeta, body.checklist.visita.tipo);
 
   const systemPrompt = buildSystemPromptDocumento(body.tipoDocumento, sectorNombre, !!referencia.pdfBase64);
   const userPrompt = buildUserPromptDocumento({ checklist: body.checklist, notasAdicionales: referencia.notas });
@@ -64,6 +64,7 @@ export async function POST(req: Request) {
     contenido.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: referencia.pdfBase64 } });
   }
   contenido.push({ type: "text", text: userPrompt });
+
   for (const foto of body.fotos ?? []) {
     contenido.push({ type: "text", text: `IMAGEN ${foto.id}` });
     contenido.push({ type: "image", source: { type: "base64", media_type: foto.mime || "image/jpeg", data: foto.base64 } });
