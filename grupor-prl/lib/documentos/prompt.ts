@@ -30,6 +30,9 @@ No uses etiquetas <img> ni inventes identificadores que no se te hayan dado.
 ## Avisos
 Si detectas una contradicción entre fuentes o un dato importante ausente, empieza tu respuesta con este bloque exacto (HTML válido, no markdown): <!--AVISOS--><ul><li>primer aviso</li><li>segundo aviso</li></ul><!--FIN_AVISOS--> — inmediatamente seguido del documento. Si no hay avisos que reportar, omite este bloque por completo y empieza directamente con el documento.
 
+## Antes de responder, verifica
+Si has recibido bloques "IMAGEN foto_XX", el documento DEBE citar cada una de esas fotos al menos una vez con el marcador [[FOTO:id|pie]] — cuenta las imágenes recibidas y confirma que todas aparecen citadas antes de responder. Un informe de riesgos sin ninguna fotografía de respaldo pierde valor probatorio ante una inspección.
+
 ## Formato de salida
 Responde con el documento completo en HTML válido — sin <html>, <head> ni <body>, solo el contenido (<h1>, <h2>, <table>, <p>, etc.). No uses markdown ni bloques de código.`;
 }
