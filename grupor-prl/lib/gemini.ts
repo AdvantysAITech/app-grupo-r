@@ -5,7 +5,7 @@ export async function transcribirAudio(base64: string, mime: string): Promise<st
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("Falta GEMINI_API_KEY en el entorno");
 
-  const modelo = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const modelo = process.env.GEMINI_MODEL || "gemini-3.6-flash";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
 
   const res = await fetch(url, {
