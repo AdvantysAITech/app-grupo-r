@@ -68,7 +68,12 @@ No incluyas "schema_version", "visita" ni "documentos_solicitados": los añade e
 }
 
 export function buildUserPromptTexto(params: {
-  empresa: { razonSocial: string; nif: string | null; direccion: string | null; actividad: string | null };
+  empresa: {
+    razonSocial: string; nombreComercial: string | null; nif: string | null; cnae: string | null;
+    actividad: string | null; direccionFiscal: string | null;
+    centroNombre: string | null; centroDireccion: string | null;
+    centroResponsable: string | null;
+  };
   sectorNombre: string;
   fecha: string;
   tipoVisita: string;
@@ -81,11 +86,20 @@ export function buildUserPromptTexto(params: {
 }): string {
   const { empresa, sectorNombre, fecha, tipoVisita, tecnicoNombre, numTrabajadores, documentos, notas, transcripcionAudio, numFotos } = params;
 
+  const pendiente = "Pendiente de facilitar";
+
   return `SECTOR: ${sectorNombre}
-EMPRESA: ${empresa.razonSocial}
-NIF/CIF: ${empresa.nif || "Pendiente de facilitar"}
-CENTRO DE TRABAJO: ${empresa.direccion || "Pendiente de facilitar"}
-ACTIVIDAD: ${empresa.actividad || "Pendiente de facilitar"}
+EMPRESA (razón social): ${empresa.razonSocial}
+NOMBRE COMERCIAL: ${empresa.nombreComercial || pendiente}
+NIF/CIF: ${empresa.nif || pendiente}
+CNAE: ${empresa.cnae || pendiente}
+ACTIVIDAD: ${empresa.actividad || pendiente}
+DOMICILIO SOCIAL: ${empresa.direccionFiscal || pendiente}
+
+CENTRO DE TRABAJO EVALUADO (la evaluación es de ESTE centro, no de la empresa):
+  Nombre del centro: ${empresa.centroNombre || "(sin denominación propia)"}
+  Dirección del centro: ${empresa.centroDireccion || pendiente}
+  Responsable del centro: ${empresa.centroResponsable || pendiente}
 FECHA DE VISITA: ${fecha}
 TIPO DE VISITA: ${tipoVisita}
 TÉCNICO: ${tecnicoNombre} — GRUPO R DE SALUD LABORAL, S.L.

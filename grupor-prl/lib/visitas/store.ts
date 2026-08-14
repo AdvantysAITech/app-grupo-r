@@ -9,8 +9,9 @@ export type TipoVisita = "inicial" | "revision" | "extraordinaria";
 
 export type VisitaResumen = {
   id: string;
-  empresaId: string;
-  empresaNombre: string;
+  empresaId: string;          // id de GHL, o "" si la empresa se introdujo a mano
+  empresaNombre: string;      // razón social
+  centroNombre: string | null; // nombre del centro de trabajo inspeccionado
   sector: string;
   sectorOtro: string | null;
   tecnico: string;
@@ -24,14 +25,30 @@ export type VisitaResumen = {
 /** Foto con id estable: el mismo que usarán los marcadores [[FOTO:id|pie]] */
 export type FotoVisita = { id: string; nombre: string; mime: string; base64: string; width: number; height: number };
 
-/** Snapshot de la empresa tal como venía del dropdown de GHL al crear la visita. */
+/**
+ * Centro de trabajo concreto que se inspecciona. Una misma empresa puede tener
+ * varios, y la evaluación de riesgos es SIEMPRE de un centro, no de la empresa:
+ * de ahí que estos datos vayan aparte y sean editables aunque la empresa venga
+ * de GHL.
+ */
+export type CentroTrabajo = {
+  nombre: string | null;       // "Centro Sant Cugat", "Almacén 2"…
+  direccion: string | null;    // dirección física del centro (va en la portada)
+  responsable: string | null;  // responsable del centro a efectos de PRL
+  telefono: string | null;
+  email: string | null;
+};
+
+/** Datos de la empresa (entidad legal) + el centro visitado. */
 export type EmpresaSnapshot = {
-  ghlId: string | null;
-  nombre: string;
+  ghlId: string | null;             // null cuando se ha introducido manualmente
+  razonSocial: string;
+  nombreComercial: string | null;
   nif: string | null;
   cnae: string | null;
-  direccion: string | null;
   actividad: string | null;
+  direccionFiscal: string | null;   // domicilio social, distinto del centro
+  centro: CentroTrabajo;
 };
 
 export type DatosVisita = {
@@ -80,12 +97,55 @@ function abrirDB(): Promise<IDBDatabase> {
   });
 }
 
+// ---------- Migración de datos ya guardados ----------
+// Las visitas creadas antes de separar empresa y centro guardaban
+// { ghlId, nombre, nif, cnae, direccion, actividad }. No se migra la base de
+// datos entera (IndexedDB es por dispositivo y no merece un upgrade de versión):
+// se normaliza al leer, que además es idempotente.
+
+type EmpresaLegacy = {
+  ghlId?: string | null;
+  nombre?: string;
+  nif?: string | null;
+  cnae?: string | null;
+  direccion?: string | null;
+  actividad?: string | null;
+};
+
+export function normalizarEmpresa(e: EmpresaSnapshot | EmpresaLegacy | undefined | null): EmpresaSnapshot {
+  const nueva = e as Partial<EmpresaSnapshot> | null | undefined;
+  if (nueva?.centro && typeof nueva.centro === "object") {
+    return nueva as EmpresaSnapshot;
+  }
+  const vieja = (e ?? {}) as EmpresaLegacy;
+  return {
+    ghlId: vieja.ghlId ?? null,
+    razonSocial: vieja.nombre ?? "(sin nombre)",
+    nombreComercial: null,
+    nif: vieja.nif ?? null,
+    cnae: vieja.cnae ?? null,
+    actividad: vieja.actividad ?? null,
+    direccionFiscal: vieja.direccion ?? null,
+    centro: {
+      nombre: null,
+      direccion: vieja.direccion ?? null,
+      responsable: null,
+      telefono: null,
+      email: null,
+    },
+  };
+}
+
+function normalizarResumen(v: VisitaResumen & { centroNombre?: string | null }): VisitaResumen {
+  return { ...v, centroNombre: v.centroNombre ?? null };
+}
+
 export async function listarVisitas(): Promise<VisitaResumen[]> {
   const db = await abrirDB();
   return new Promise((resolve, reject) => {
     const req = db.transaction(STORE, "readonly").objectStore(STORE).getAll();
     req.onsuccess = () => {
-      const v = (req.result as VisitaResumen[]) ?? [];
+      const v = ((req.result as VisitaResumen[]) ?? []).map(normalizarResumen);
       v.sort((a, b) => b.actualizadaEn.localeCompare(a.actualizadaEn));
       resolve(v);
     };
@@ -97,7 +157,7 @@ export async function leerVisita(id: string): Promise<VisitaResumen | null> {
   const db = await abrirDB();
   return new Promise((resolve, reject) => {
     const req = db.transaction(STORE, "readonly").objectStore(STORE).get(id);
-    req.onsuccess = () => resolve((req.result as VisitaResumen) ?? null);
+    req.onsuccess = () => resolve(req.result ? normalizarResumen(req.result as VisitaResumen) : null);
     req.onerror = () => reject(req.error);
   });
 }
@@ -144,7 +204,10 @@ export async function leerDatosVisita(id: string): Promise<DatosVisita | null> {
   const db = await abrirDB();
   return new Promise((resolve, reject) => {
     const req = db.transaction(STORE_DATOS, "readonly").objectStore(STORE_DATOS).get(id);
-    req.onsuccess = () => resolve((req.result as DatosVisita) ?? null);
+    req.onsuccess = () => {
+      const d = req.result as DatosVisita | undefined;
+      resolve(d ? { ...d, empresa: normalizarEmpresa(d.empresa) } : null);
+    };
     req.onerror = () => reject(req.error);
   });
 }

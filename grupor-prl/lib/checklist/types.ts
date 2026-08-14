@@ -2,7 +2,7 @@
 // Contrato central — Esquema Checklist v1.0
 // Ver docs/Esquema_Checklist_v1.md. Cualquier cambio de campos incrementa SCHEMA_VERSION.
 
-export const SCHEMA_VERSION = "1.0";
+export const SCHEMA_VERSION = "1.1";
 
 // ---------- Enumeraciones ----------
 
@@ -39,13 +39,23 @@ export const DOCUMENTOS_VALIDOS: TipoDocumento[] = [
 
 export type Tecnico = { usuario: string; nombre: string; email: string };
 
+/** v1.1: la evaluación es de un CENTRO de trabajo concreto, no de la empresa.
+ *  Una misma empresa puede tener varios centros, cada uno con su dirección y
+ *  su responsable. Los campos de centro son los que se imprimen en la portada
+ *  y en el apartado de datos identificativos de los documentos. */
 export type Empresa = {
   ghl_id: string | null;
   razon_social: string;
   nombre_comercial: string | null;
   nif: string | null;
-  direccion_centro: string | null;
+  cnae: string | null;
   actividad: string | null;
+  direccion_fiscal: string | null;   // domicilio social de la empresa
+  centro_nombre: string | null;      // identificador del centro visitado
+  direccion_centro: string | null;   // dirección física del centro evaluado
+  responsable_centro: string | null; // interlocutor del centro a efectos de PRL
+  telefono_centro: string | null;
+  email_centro: string | null;
   sector: string;
   num_trabajadores: number | null;
 };

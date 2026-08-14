@@ -23,9 +23,18 @@ type BodyEntrada = {
   empresa: {
     ghlId: string | null;
     razonSocial: string;
+    nombreComercial: string | null;
     nif: string | null;
-    direccion: string | null;
+    cnae: string | null;
     actividad: string | null;
+    direccionFiscal: string | null;
+    centro: {
+      nombre: string | null;
+      direccion: string | null;
+      responsable: string | null;
+      telefono: string | null;
+      email: string | null;
+    };
   };
   sector: string;
   sectorOtro: string | null;
@@ -85,9 +94,14 @@ export async function POST(req: Request) {
   const textoUsuario = buildUserPromptTexto({
     empresa: {
       razonSocial: body.empresa.razonSocial,
+      nombreComercial: body.empresa.nombreComercial,
       nif: body.empresa.nif,
-      direccion: body.empresa.direccion,
+      cnae: body.empresa.cnae,
       actividad: body.empresa.actividad,
+      direccionFiscal: body.empresa.direccionFiscal,
+      centroNombre: body.empresa.centro?.nombre ?? null,
+      centroDireccion: body.empresa.centro?.direccion ?? null,
+      centroResponsable: body.empresa.centro?.responsable ?? null,
     },
     sectorNombre,
     fecha: body.fecha,
@@ -161,10 +175,16 @@ export async function POST(req: Request) {
     empresa: {
       ghl_id: body.empresa.ghlId,
       razon_social: body.empresa.razonSocial,
-      nombre_comercial: null,
+      nombre_comercial: body.empresa.nombreComercial,
       nif: body.empresa.nif,
-      direccion_centro: body.empresa.direccion,
+      cnae: body.empresa.cnae,
       actividad: body.empresa.actividad,
+      direccion_fiscal: body.empresa.direccionFiscal,
+      centro_nombre: body.empresa.centro?.nombre ?? null,
+      direccion_centro: body.empresa.centro?.direccion ?? null,
+      responsable_centro: body.empresa.centro?.responsable ?? null,
+      telefono_centro: body.empresa.centro?.telefono ?? null,
+      email_centro: body.empresa.centro?.email ?? null,
       sector: sectorNombre,
       num_trabajadores: body.numTrabajadores,
     },
