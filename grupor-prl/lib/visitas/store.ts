@@ -23,7 +23,11 @@ export type VisitaResumen = {
 };
 
 /** Foto con id estable: el mismo que usarán los marcadores [[FOTO:id|pie]] */
-export type FotoVisita = { id: string; nombre: string; mime: string; base64: string; width: number; height: number };
+export type FotoVisita = {
+  id: string; nombre: string; mime: string; base64: string; width: number; height: number;
+  /** Ruta dentro del bucket de Supabase una vez subida. null/undefined = solo local. */
+  path?: string | null;
+};
 
 /**
  * Centro de trabajo concreto que se inspecciona. Una misma empresa puede tener

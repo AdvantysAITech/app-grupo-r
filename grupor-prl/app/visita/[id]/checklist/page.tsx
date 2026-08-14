@@ -5,14 +5,15 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  leerVisita, leerDatosVisita, guardarChecklist, leerChecklist, actualizarEstadoVisita,
+  leerVisita, leerDatosVisita, guardarChecklist, leerChecklist, actualizarEstadoVisita, guardarDatosVisita,
   type VisitaResumen, type DatosVisita,
 } from "@/lib/visitas/store";
 import {
-  type Checklist, type Bloque, type Item, type ValorItem,
+  type Checklist, type Bloque, type Item, type ValorItem, type TipoDocumento,
   itemsPendientes, puedeConfirmar, itemsInferidos, marcarEditado, confirmarChecklist, bloqueSectorial,
 } from "@/lib/checklist/types";
-import { nombreSector } from "@/lib/sectores";
+import { nombreSector, DOCUMENTOS } from "@/lib/sectores";
+import { subirFotosPendientes, referenciasFoto } from "@/lib/fotos/subir";
 
 export default function ChecklistPage() {
   const params = useParams<{ id: string }>();
@@ -24,18 +25,31 @@ export default function ChecklistPage() {
   const [avisosParseo, setAvisosParseo] = useState<string[]>([]);
   const [cargando, setCargando] = useState(true);
   const [generando, setGenerando] = useState(false);
+  const [subiendoFotos, setSubiendoFotos] = useState<{ hechas: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState(false);
+  const [modalAbierto, setModalAbierto] = useState(false);
   const [generandoDocs, setGenerandoDocs] = useState(false);
-  const [progresoDocs, setProgresoDocs] = useState<string[]>([]);
-  const [docsListos, setDocsListos] = useState(false);
+  const [estadoDocs, setEstadoDocs] = useState<Record<string, EstadoDoc>>({});
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
+  const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
 
   const generar = useCallback(async (v: VisitaResumen, d: DatosVisita) => {
     setGenerando(true);
     setError(null);
     try {
+      // Las fotos se suben a Supabase ANTES de llamar a la IA: en el body solo
+      // viaja su ruta, no los bytes (límite de ~4,5 MB de Vercel).
+      let fotos = d.fotos;
+      if (fotos.some((f) => !f.path)) {
+        setSubiendoFotos({ hechas: 0, total: fotos.filter((f) => !f.path).length });
+        fotos = await subirFotosPendientes(v.id, fotos, (hechas, total) => setSubiendoFotos({ hechas, total }));
+        await guardarDatosVisita({ ...d, fotos });
+        setDatos({ ...d, fotos });
+        setSubiendoFotos(null);
+      }
+
       const res = await fetch("/api/checklist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -58,7 +72,7 @@ export default function ChecklistPage() {
           numTrabajadores: d.numTrabajadores,
           documentosSolicitados: v.documentosSolicitados,
           notas: d.notas,
-          fotos: d.fotos.map((f) => ({ id: f.id, mime: f.mime, base64: f.base64 })),
+          fotos: referenciasFoto(fotos),
           audio: d.audioBase64 ? { base64: d.audioBase64, mime: d.audioMime! } : null,
         }),
       });
@@ -73,6 +87,7 @@ export default function ChecklistPage() {
       setError(e instanceof Error ? e.message : "Error generando el checklist.");
       await actualizarEstadoVisita(v.id, "error");
     } finally {
+      setSubiendoFotos(null);
       setGenerando(false);
     }
   }, []);
@@ -115,6 +130,47 @@ export default function ChecklistPage() {
     });
   }
 
+  /** Genera un único documento y actualiza su fila del modal. */
+  const generarDocumento = useCallback(
+    async (tipo: TipoDocumento, confirmado: Checklist, fotos: DatosVisita["fotos"], visitaId: string) => {
+      setEstadoDocs((p) => ({ ...p, [tipo]: { fase: "generando" } }));
+      try {
+        const res = await fetch("/api/generar-documento", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ visitaId, tipoDocumento: tipo, checklist: confirmado, fotos: referenciasFoto(fotos) }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`);
+        setEstadoDocs((p) => ({ ...p, [tipo]: { fase: "ok", avisos: data.avisos ?? [] } }));
+        return true;
+      } catch (e) {
+        setEstadoDocs((p) => ({
+          ...p,
+          [tipo]: { fase: "error", mensaje: e instanceof Error ? e.message : String(e) },
+        }));
+        return false;
+      }
+    },
+    []
+  );
+
+  /** Lanza la generación de la lista de tipos indicada, en serie. */
+  const generarDocumentos = useCallback(
+    async (tipos: TipoDocumento[], confirmado: Checklist, d: DatosVisita, visitaId: string) => {
+      setGenerandoDocs(true);
+      setErrorEnvio(null);
+      let huboError = false;
+      for (const tipo of tipos) {
+        const ok = await generarDocumento(tipo, confirmado, d.fotos, visitaId);
+        if (!ok) huboError = true;
+      }
+      setGenerandoDocs(false);
+      await actualizarEstadoVisita(visitaId, huboError ? "error" : "completada");
+    },
+    [generarDocumento]
+  );
+
   async function onConfirmar() {
     if (!checklist || !visita || !datos) return;
     setConfirmando(true);
@@ -128,33 +184,26 @@ export default function ChecklistPage() {
       setConfirmando(false);
     }
 
-    setGenerandoDocs(true);
-    setProgresoDocs([]);
-    let huboError = false;
-    for (const tipo of confirmado.documentos_solicitados) {
-      setProgresoDocs((p) => [...p, `Generando "${tipo}"…`]);
-      try {
-        const res = await fetch("/api/generar-documento", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ visitaId: visita.id, tipoDocumento: tipo, checklist: confirmado, fotos: datos.fotos }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`);
-        setProgresoDocs((p) => [...p.slice(0, -1), `✅ "${tipo}" generado${data.avisos?.length ? ` (avisos: ${data.avisos.join("; ")})` : ""}`]);
-      } catch (e) {
-        huboError = true;
-        setProgresoDocs((p) => [...p.slice(0, -1), `❌ "${tipo}" falló: ${e instanceof Error ? e.message : String(e)}`]);
-      }
-    }
-    setGenerandoDocs(false);
-    await actualizarEstadoVisita(visita.id, huboError ? "error" : "completada");
-    setDocsListos(!huboError);
+    // El modal se abre ANTES de empezar: en móvil el progreso en texto pequeño
+    // al pie de la página pasaba desapercibido.
+    setEstadoDocs(
+      Object.fromEntries(confirmado.documentos_solicitados.map((t) => [t, { fase: "pendiente" } as EstadoDoc]))
+    );
+    setModalAbierto(true);
+    await generarDocumentos(confirmado.documentos_solicitados, confirmado, datos, visita.id);
+  }
+
+  async function onReintentarFallidos() {
+    if (!checklist || !visita || !datos) return;
+    const fallidos = (checklist.documentos_solicitados ?? []).filter((t) => estadoDocs[t]?.fase === "error");
+    if (fallidos.length === 0) return;
+    await generarDocumentos(fallidos, checklist, datos, visita.id);
   }
 
   async function onEnviarEmail() {
     if (!visita) return;
     setEnviando(true);
+    setErrorEnvio(null);
     try {
       const res = await fetch("/api/enviar-email", {
         method: "POST",
@@ -165,14 +214,20 @@ export default function ChecklistPage() {
       if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`);
       setEnviado(true);
     } catch (e) {
-      setProgresoDocs((p) => [...p, `❌ Error enviando email: ${e instanceof Error ? e.message : String(e)}`]);
+      setErrorEnvio(e instanceof Error ? e.message : String(e));
     } finally {
       setEnviando(false);
     }
   }
 
   if (cargando) return <EstadoCentral texto="Cargando visita…" />;
-  if (generando) return <EstadoCentral texto="Generando checklist con IA… puede tardar hasta un minuto." />;
+  if (generando) return (
+    <PantallaGenerandoChecklist
+      numFotos={datos?.fotos.length ?? 0}
+      conAudio={Boolean(datos?.audioBase64)}
+      subiendoFotos={subiendoFotos}
+    />
+  );
   if (error && !checklist) {
     return (
       <EstadoCentral texto={error}>
@@ -254,19 +309,19 @@ export default function ChecklistPage() {
         {confirmando ? "Confirmando…" : generandoDocs ? "Generando documentos…" : puedeConf ? "Confirmar checklist" : `Faltan ${pendientes.length} campo(s) obligatorio(s)`}
       </button>
 
-      {progresoDocs.length > 0 && (
-        <div style={{ marginTop: "1rem", fontSize: "0.85rem", color: "#374151" }}>
-          {progresoDocs.map((p, i) => <div key={i} style={{ padding: "0.3rem 0" }}>{p}</div>)}
-        </div>
+      {modalAbierto && (
+        <ModalDocumentos
+          orden={checklist.documentos_solicitados}
+          estados={estadoDocs}
+          generando={generandoDocs}
+          enviando={enviando}
+          enviado={enviado}
+          errorEnvio={errorEnvio}
+          onEnviar={onEnviarEmail}
+          onReintentar={onReintentarFallidos}
+          onCerrar={() => setModalAbierto(false)}
+        />
       )}
-
-      {docsListos && !enviado && (
-        <button onClick={onEnviarEmail} disabled={enviando}
-          style={{ ...btnPrimario, width: "100%", marginTop: "0.75rem", background: "#1e8449", opacity: enviando ? 0.5 : 1 }}>
-          {enviando ? "Enviando…" : "Enviar documentos por email"}
-        </button>
-      )}
-      {enviado && <Aviso tipo="parseo">✅ Documentos enviados por email correctamente.</Aviso>}
     </main>
   );
 }
@@ -398,3 +453,279 @@ const ETIQUETA_VALORACION: Record<string, string> = {
 const card: React.CSSProperties = { border: "1px solid #e5e7eb", borderRadius: 12, padding: "1.15rem", marginBottom: "1rem" };
 const tituloSeccion: React.CSSProperties = { fontSize: "1.05rem", fontWeight: 600, margin: "0 0 0.25rem" };
 const btnPrimario: React.CSSProperties = { padding: "0.85rem", borderRadius: 8, border: "none", background: "#111827", color: "#fff", fontWeight: 600, fontSize: "1rem", cursor: "pointer" };
+
+
+// ---------------------------------------------------------------------------
+// Feedback de progreso
+// ---------------------------------------------------------------------------
+
+type EstadoDoc = {
+  fase: "pendiente" | "generando" | "ok" | "error";
+  mensaje?: string;
+  avisos?: string[];
+};
+
+function nombreDocumento(tipo: string) {
+  return DOCUMENTOS.find((d) => d.id === tipo)?.nombre ?? tipo;
+}
+
+function mmss(segundos: number) {
+  const m = Math.floor(segundos / 60);
+  const sg = segundos % 60;
+  return `${m}:${String(sg).padStart(2, "0")}`;
+}
+
+/** Cronómetro en segundos, arranca al montar. */
+function useCronometro(activo: boolean) {
+  const [segundos, setSegundos] = useState(0);
+  useEffect(() => {
+    if (!activo) return;
+    const t = setInterval(() => setSegundos((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [activo]);
+  return segundos;
+}
+
+/** Barra indeterminada: no fingimos un porcentaje que no conocemos. */
+function BarraIndeterminada() {
+  return (
+    <>
+      <style>{`@keyframes grDeslizar { 0% { left: -40%; } 100% { left: 100%; } }`}</style>
+      <div style={{ position: "relative", height: 4, background: "#e5e7eb", borderRadius: 999, overflow: "hidden" }}>
+        <div style={{
+          position: "absolute", top: 0, height: "100%", width: "40%", borderRadius: 999,
+          background: "#111827", animation: "grDeslizar 1.4s ease-in-out infinite",
+        }} />
+      </div>
+    </>
+  );
+}
+
+/**
+ * Pantalla de espera de la Llamada 1. La generación tarda bastante más de lo
+ * que decía el mensaje anterior ("hasta un minuto"), así que aquí se muestra
+ * el tiempo transcurrido y en qué fase va, para que el técnico no crea que
+ * la app se ha colgado.
+ */
+function PantallaGenerandoChecklist({ numFotos, conAudio, subiendoFotos }: {
+  numFotos: number;
+  conAudio: boolean;
+  subiendoFotos: { hechas: number; total: number } | null;
+}) {
+  const segundos = useCronometro(true);
+
+  // Mientras se suben las fotos sí hay progreso real que mostrar.
+  if (subiendoFotos) {
+    const pct = subiendoFotos.total ? Math.round((subiendoFotos.hechas / subiendoFotos.total) * 100) : 0;
+    return (
+      <main style={{ maxWidth: 480, margin: "5rem auto", padding: "0 1.5rem", textAlign: "center" }}>
+        <h1 style={{ fontSize: "1.2rem", fontWeight: 600, margin: "0 0 0.5rem" }}>Subiendo fotografías</h1>
+        <p style={{ color: "#6b7280", fontSize: "0.9rem", margin: "0 0 1.5rem" }}>
+          {subiendoFotos.hechas} de {subiendoFotos.total} · necesitas conexión para este paso.
+        </p>
+        <div style={{ height: 6, background: "#e5e7eb", borderRadius: 999, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${pct}%`, background: "#111827", borderRadius: 999, transition: "width .25s" }} />
+        </div>
+      </main>
+    );
+  }
+
+  const fases = [
+    conAudio ? "Transcribiendo la grabación de audio…" : "Preparando los datos de la visita…",
+    numFotos > 0 ? `Analizando ${numFotos} fotografía${numFotos === 1 ? "" : "s"} del centro…` : "Analizando las notas del técnico…",
+    "Identificando puestos de trabajo y riesgos…",
+    "Redactando los bloques del checklist…",
+    "Revisando coherencia y datos pendientes…",
+  ];
+  // Avanza de fase cada 25s; se queda en la última hasta que termine de verdad.
+  const faseActual = Math.min(Math.floor(segundos / 25), fases.length - 1);
+
+  return (
+    <main style={{ maxWidth: 480, margin: "5rem auto", padding: "0 1.5rem", textAlign: "center" }}>
+      <h1 style={{ fontSize: "1.2rem", fontWeight: 600, margin: "0 0 0.5rem" }}>Generando checklist</h1>
+      <p style={{ color: "#6b7280", fontSize: "0.9rem", margin: "0 0 1.5rem" }}>
+        La IA está analizando la visita. Suele tardar entre 1 y 3 minutos; no cierres esta pantalla.
+      </p>
+
+      <BarraIndeterminada />
+
+      <p style={{ margin: "1.25rem 0 0.35rem", fontWeight: 500 }}>{fases[faseActual]}</p>
+      <p style={{ color: "#9ca3af", fontSize: "0.85rem", margin: 0, fontVariantNumeric: "tabular-nums" }}>
+        {mmss(segundos)} transcurrido{segundos >= 180 && " · está tardando más de lo normal, sigue en marcha"}
+      </p>
+
+      <ul style={{ listStyle: "none", padding: 0, margin: "1.75rem 0 0", textAlign: "left", display: "grid", gap: "0.4rem" }}>
+        {fases.map((f, i) => (
+          <li key={f} style={{ display: "flex", gap: "0.6rem", alignItems: "center", fontSize: "0.85rem", color: i <= faseActual ? "#111827" : "#d1d5db" }}>
+            <span style={{ width: 16, flexShrink: 0 }}>{i < faseActual ? "✓" : i === faseActual ? "•" : "○"}</span>
+            <span>{f}</span>
+          </li>
+        ))}
+      </ul>
+    </main>
+  );
+}
+
+const ICONO_FASE: Record<EstadoDoc["fase"], string> = {
+  pendiente: "○", generando: "•", ok: "✓", error: "✕",
+};
+const COLOR_FASE: Record<EstadoDoc["fase"], string> = {
+  pendiente: "#9ca3af", generando: "#1d4ed8", ok: "#15803d", error: "#b91c1c",
+};
+
+/**
+ * Modal bloqueante de generación de documentos.
+ *
+ * Es deliberadamente imposible de cerrar mientras se generan documentos: no
+ * responde al clic en el fondo, no tiene botón de cerrar y bloquea el scroll
+ * del cuerpo. Si el técnico se sale a mitad, los DOCX que falten no se generan
+ * y el email se enviaría incompleto.
+ */
+function ModalDocumentos({
+  orden, estados, generando, enviando, enviado, errorEnvio, onEnviar, onReintentar, onCerrar,
+}: {
+  orden: TipoDocumento[];
+  estados: Record<string, EstadoDoc>;
+  generando: boolean;
+  enviando: boolean;
+  enviado: boolean;
+  errorEnvio: string | null;
+  onEnviar: () => void;
+  onReintentar: () => void;
+  onCerrar: () => void;
+}) {
+  const segundos = useCronometro(generando);
+  const bloqueado = generando || enviando;
+
+  const completados = orden.filter((t) => estados[t]?.fase === "ok").length;
+  const fallidos = orden.filter((t) => estados[t]?.fase === "error").length;
+  const terminado = !generando && orden.every((t) => ["ok", "error"].includes(estados[t]?.fase ?? ""));
+  const avisos = orden.flatMap((t) => (estados[t]?.avisos ?? []).map((a) => ({ tipo: t, texto: a })));
+
+  // Bloquea el scroll de fondo y avisa si se intenta cerrar la pestaña a mitad.
+  useEffect(() => {
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onSalir = (e: BeforeUnloadEvent) => { if (bloqueado) e.preventDefault(); };
+    window.addEventListener("beforeunload", onSalir);
+    return () => {
+      document.body.style.overflow = overflow;
+      window.removeEventListener("beforeunload", onSalir);
+    };
+  }, [bloqueado]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      style={{
+        position: "fixed", inset: 0, background: "rgba(17,24,39,.55)", zIndex: 50,
+        display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "1rem",
+      }}
+      // Sin onClick: pulsar fuera NO cierra el modal a propósito.
+    >
+      <div style={{
+        background: "#fff", borderRadius: 16, width: "100%", maxWidth: 460,
+        padding: "1.35rem 1.25rem 1.25rem", maxHeight: "88vh", overflowY: "auto",
+        boxShadow: "0 -8px 40px rgba(0,0,0,.25)",
+      }}>
+        <h2 style={{ fontSize: "1.1rem", fontWeight: 700, margin: "0 0 0.3rem" }}>
+          {generando ? "Generando documentos" : enviado ? "Documentos enviados" : fallidos > 0 ? "Generación incompleta" : "Documentos listos"}
+        </h2>
+        <p style={{ color: "#6b7280", fontSize: "0.85rem", margin: "0 0 1rem" }}>
+          {generando
+            ? `${completados} de ${orden.length} · ${mmss(segundos)} · cada documento tarda entre 1 y 2 minutos.`
+            : enviado
+              ? "Se han enviado por email con todos los adjuntos."
+              : `${completados} de ${orden.length} generados${fallidos > 0 ? `, ${fallidos} con error` : ""}.`}
+        </p>
+
+        {generando && <div style={{ marginBottom: "1rem" }}><BarraIndeterminada /></div>}
+
+        <ul style={{ listStyle: "none", padding: 0, margin: "0 0 1.1rem", display: "grid", gap: "0.55rem" }}>
+          {orden.map((tipo) => {
+            const est = estados[tipo] ?? { fase: "pendiente" as const };
+            return (
+              <li key={tipo} style={{ display: "flex", gap: "0.65rem", alignItems: "flex-start", fontSize: "0.9rem" }}>
+                <span style={{ color: COLOR_FASE[est.fase], width: 16, flexShrink: 0, fontWeight: 700 }}>
+                  {ICONO_FASE[est.fase]}
+                </span>
+                <span style={{ flex: 1 }}>
+                  <span style={{ color: est.fase === "pendiente" ? "#9ca3af" : "#111827" }}>
+                    {nombreDocumento(tipo)}
+                  </span>
+                  {est.fase === "generando" && <span style={{ color: "#1d4ed8" }}> · redactando…</span>}
+                  {est.fase === "error" && (
+                    <span style={{ display: "block", color: "#b91c1c", fontSize: "0.78rem", marginTop: 2 }}>
+                      {est.mensaje}
+                    </span>
+                  )}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+
+        {avisos.length > 0 && !generando && (
+          <div style={{ background: "#fff7ed", color: "#9a3412", borderRadius: 8, padding: "0.7rem 0.85rem", fontSize: "0.8rem", marginBottom: "1rem" }}>
+            <strong style={{ display: "block", marginBottom: "0.35rem" }}>Avisos de la IA</strong>
+            <ul style={{ margin: 0, paddingLeft: "1.1rem", display: "grid", gap: "0.25rem" }}>
+              {avisos.map((a, i) => <li key={i}>{a.texto}</li>)}
+            </ul>
+          </div>
+        )}
+
+        {errorEnvio && (
+          <div style={{ background: "#fef2f2", color: "#b91c1c", borderRadius: 8, padding: "0.7rem 0.85rem", fontSize: "0.82rem", marginBottom: "1rem" }}>
+            No se pudo enviar el email: {errorEnvio}
+          </div>
+        )}
+
+        {terminado && !enviado && (
+          <>
+            {fallidos > 0 && (
+              <button onClick={onReintentar} disabled={bloqueado}
+                style={{ ...btnModal, background: "#fff", color: "#111827", border: "1px solid #d1d5db", marginBottom: "0.6rem" }}>
+                Reintentar los {fallidos} documento{fallidos === 1 ? "" : "s"} con error
+              </button>
+            )}
+            {completados > 0 && (
+              <button onClick={onEnviar} disabled={enviando}
+                style={{ ...btnModal, background: "#1e8449", opacity: enviando ? 0.6 : 1 }}>
+                {enviando
+                  ? "Enviando…"
+                  : fallidos > 0
+                    ? `Enviar los ${completados} documento${completados === 1 ? "" : "s"} generados`
+                    : "Enviar documentos por email"}
+              </button>
+            )}
+          </>
+        )}
+
+        {enviado && (
+          <div style={{ background: "#f0fdf4", color: "#15803d", borderRadius: 8, padding: "0.8rem 0.9rem", fontSize: "0.88rem", marginBottom: "0.9rem" }}>
+            ✅ Enviados correctamente. Los archivos se han borrado del almacenamiento temporal.
+          </div>
+        )}
+
+        {!bloqueado && terminado && (
+          <button onClick={onCerrar}
+            style={{ ...btnModal, background: "none", color: "#6b7280", fontWeight: 500, marginTop: "0.4rem" }}>
+            {enviado ? "Cerrar" : "Cerrar sin enviar"}
+          </button>
+        )}
+
+        {bloqueado && (
+          <p style={{ textAlign: "center", color: "#9ca3af", fontSize: "0.78rem", margin: "0.4rem 0 0" }}>
+            No cierres la aplicación hasta que termine.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const btnModal: React.CSSProperties = {
+  width: "100%", padding: "0.85rem", borderRadius: 10, border: "none",
+  color: "#fff", fontWeight: 600, fontSize: "0.95rem", cursor: "pointer",
+};

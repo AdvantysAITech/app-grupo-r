@@ -10,11 +10,13 @@ import {
 } from "@/lib/checklist/types";
 import { nombreSector } from "@/lib/sectores";
 import { documentosDisponibles } from "@/lib/documentos/tipos";
+import { resolverFotos, type FotoReferencia } from "@/lib/fotos/servidor";
 
 export const runtime = "nodejs";
 export const maxDuration = 120; // varias imágenes + JSON grande puede tardar
 
-type FotoEntrada = { id: string; mime: string; base64: string };
+// Las fotos llegan como referencia al bucket, no como bytes en el body.
+type FotoEntrada = FotoReferencia;
 
 type BodyEntrada = {
   visitaId: string;
@@ -89,6 +91,12 @@ export async function POST(req: Request) {
     }
   }
 
+  // Descarga de las fotos desde Supabase Storage (ya no vienen en el body).
+  const { resueltas: fotosResueltas, fallidas: fotosFallidas } = await resolverFotos(body.fotos);
+  const avisoFotos = fotosFallidas.length
+    ? `No se pudieron recuperar ${fotosFallidas.length} fotografía(s) (${fotosFallidas.join(", ")}); el checklist se ha generado sin ellas.`
+    : null;
+
   // --- Prompt ---
   const systemPrompt = buildSystemPrompt(sectorNombre, body.sector);
   const textoUsuario = buildUserPromptTexto({
@@ -111,7 +119,7 @@ export async function POST(req: Request) {
     documentos,
     notas: body.notas ?? "",
     transcripcionAudio,
-    numFotos: body.fotos?.length ?? 0,
+    numFotos: fotosResueltas.length,
   });
 
   type BloqueContenido =
@@ -120,7 +128,7 @@ export async function POST(req: Request) {
 
   const contenido: BloqueContenido[] = [{ type: "text", text: textoUsuario }];
 
-  for (const foto of body.fotos ?? []) {
+  for (const foto of fotosResueltas) {
     contenido.push({ type: "text", text: `IMAGEN ${foto.id}` });
     contenido.push({
       type: "image",
@@ -199,6 +207,7 @@ export async function POST(req: Request) {
     const avisosFinal = [
       ...(truncada ? ["La respuesta de la IA se cortó por longitud (max_tokens). Puede haber bloques incompletos: revisa con atención o reintenta."] : []),
       ...(avisoTranscripcion ? [avisoTranscripcion] : []),
+      ...(avisoFotos ? [avisoFotos] : []),
       ...avisosParseo,
     ];
 

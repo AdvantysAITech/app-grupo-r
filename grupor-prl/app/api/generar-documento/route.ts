@@ -15,11 +15,13 @@ import {
   opcionesDocx,
 } from "@/lib/documentos/marca";
 import { DOCUMENTOS_VALIDOS, type Checklist, type TipoDocumento } from "@/lib/checklist/types";
+import { resolverFotos, type FotoReferencia } from "@/lib/fotos/servidor";
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
 
-type FotoEntrada = { id: string; mime: string; base64: string; width?: number; height?: number };
+// Referencias al bucket; los bytes se descargan en el servidor.
+type FotoEntrada = FotoReferencia;
 type BodyEntrada = {
   visitaId: string;
   tipoDocumento: TipoDocumento;
@@ -81,7 +83,10 @@ export async function POST(req: Request) {
   }
   contenido.push({ type: "text", text: userPrompt });
 
-  for (const foto of body.fotos ?? []) {
+  // Descarga desde Supabase Storage: las fotos ya no viajan en el body.
+  const { resueltas: fotos, fallidas: fotosFallidas } = await resolverFotos(body.fotos);
+
+  for (const foto of fotos) {
     contenido.push({ type: "text", text: `IMAGEN ${foto.id}` });
     contenido.push({ type: "image", source: { type: "base64", media_type: foto.mime || "image/jpeg", data: foto.base64 } });
   }
@@ -131,9 +136,9 @@ export async function POST(req: Request) {
   const htmlSinAvisos = htmlGenerado.replace(/<!--AVISOS-->[\s\S]*?<!--FIN_AVISOS-->/, "").trim();
 
   // --- Sustitución de marcadores de foto ---
-  const mapaFotos: MapaFotos = Object.fromEntries((body.fotos ?? []).map((f) => [f.id, { base64: f.base64, mime: f.mime }]));
+  const mapaFotos: MapaFotos = Object.fromEntries(fotos.map((f) => [f.id, { base64: f.base64, mime: f.mime }]));
   const dimensiones: Dimensiones = Object.fromEntries(
-    (body.fotos ?? []).filter((f) => f.width && f.height).map((f) => [f.id, { width: f.width!, height: f.height! }])
+    fotos.filter((f) => f.width && f.height).map((f) => [f.id, { width: f.width!, height: f.height! }])
   );
   const { html: htmlConFotos, noEncontradas } = sustituirMarcadoresFoto(htmlSinAvisos, mapaFotos, dimensiones);
 
@@ -187,6 +192,7 @@ export async function POST(req: Request) {
       ...(truncado ? [`⚠️ "${meta.titulo}" puede estar incompleto: la respuesta se cortó por longitud (max_tokens).`] : []),
       ...avisosDocumento,
       ...(noEncontradas.length ? [`Marcadores sin foto correspondiente: ${noEncontradas.join(", ")}`] : []),
+      ...(fotosFallidas.length ? [`No se pudieron recuperar del almacenamiento: ${fotosFallidas.join(", ")}`] : []),
     ],
   });
 }

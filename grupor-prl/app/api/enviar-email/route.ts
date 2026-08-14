@@ -5,6 +5,7 @@ import MailComposer from "nodemailer/lib/mail-composer";
 import { createClient } from "@supabase/supabase-js";
 import { getTecnicoId } from "@/lib/auth";
 import { buscarTecnicoPublico } from "@/lib/tecnicos";
+import { carpetaFotos } from "@/lib/fotos/rutas";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -104,6 +105,12 @@ export async function POST(req: Request) {
 
   // --- Limpieza: borrar los documentos del bucket tras el envío ---
   const rutas = archivos.map((f) => `${carpeta}/${f.name}`);
+
+  // Las fotos viven en la subcarpeta fotos/, que list() no devuelve: se listan
+  // y borran aparte. Si no, quedarían huérfanas en el bucket para siempre.
+  const { data: listadoFotos } = await supabase.storage.from("documentos-visitas").list(carpetaFotos(body.visitaId));
+  for (const f of listadoFotos ?? []) rutas.push(`${carpetaFotos(body.visitaId)}/${f.name}`);
+
   const { error: errDelete } = await supabase.storage.from("documentos-visitas").remove(rutas);
   if (errDelete) {
     // No es fatal: el email ya salió. Solo lo registramos.
