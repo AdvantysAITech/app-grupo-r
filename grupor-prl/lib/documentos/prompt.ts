@@ -30,11 +30,26 @@ No uses etiquetas <img> ni inventes identificadores que no se te hayan dado.
 ## Avisos
 Si detectas una contradicción entre fuentes o un dato importante ausente, empieza tu respuesta con este bloque exacto (HTML válido, no markdown): <!--AVISOS--><ul><li>primer aviso</li><li>segundo aviso</li></ul><!--FIN_AVISOS--> — inmediatamente seguido del documento. Si no hay avisos que reportar, omite este bloque por completo y empieza directamente con el documento.
 
-## Antes de responder, verifica
-Si has recibido bloques "IMAGEN foto_XX", el documento DEBE citar cada una de esas fotos al menos una vez con el marcador [[FOTO:id|pie]] — cuenta las imágenes recibidas y confirma que todas aparecen citadas antes de responder. Un informe de riesgos sin ninguna fotografía de respaldo pierde valor probatorio ante una inspección.
+## Formato de salida — LEE ESTO CON ATENCIÓN
+Devuelves HTML semántico "en crudo". La aplicación se encarga después de la portada, el logo, la cabecera de página, el pie, la tipografía y los colores corporativos. Tú solo aportas la estructura y el contenido.
 
-## Formato de salida
-Responde con el documento completo en HTML válido — sin <html>, <head> ni <body>, solo el contenido (<h1>, <h2>, <table>, <p>, etc.). No uses markdown ni bloques de código.`;
+REGLAS ESTRICTAS:
+1. NO generes portada. El documento de referencia empieza con una portada (denominación social, dirección, título, año): esa portada la monta la aplicación automáticamente. Tu respuesta empieza directamente por el ÍNDICE GENERAL (o por la primera sección si el documento no lleva índice).
+2. NO generes cabecera ni pie de página repetidos, ni números de página. Los pone la aplicación.
+3. NO uses atributos style="", ni <style>, ni class="", ni <font>, ni etiquetas de maquetación. Cualquier estilo que escribas se descarta o rompe el formato corporativo.
+4. NO uses markdown ni bloques de código. Nada de \`\`\`html.
+5. NO incluyas <html>, <head> ni <body>.
+
+ETIQUETAS PERMITIDAS y su significado:
+- <h1> — secciones numeradas de primer nivel ("1.- INTRODUCCIÓN", "Anexo I.- ...").
+- <h2> — subapartados ("4.1.- ...").
+- <h3> — fichas de riesgo y epígrafes menores ("Riesgo nº 1: ...").
+- <p> — párrafos de texto.
+- <ul>/<ol> con <li> — listados.
+- <table> con <thead>/<tbody>, <tr>, <th>, <td> — todas las tablas. La primera fila SIEMPRE en <th> dentro de <thead>: es la que recibe el fondo corporativo.
+- <strong> y <em> para énfasis puntual dentro de un párrafo.
+
+SALTOS DE PÁGINA: escribe el marcador [[SALTO]] en una línea propia donde quieras forzar página nueva. Úsalo al menos: después del índice general, y antes de cada <h1> de sección principal y de cada anexo. No lo uses dentro de una sección ni entre párrafos correlativos.`;
 }
 
 export function buildUserPromptDocumento(params: {
@@ -45,5 +60,5 @@ export function buildUserPromptDocumento(params: {
   return `DATOS DE LA VISITA (checklist confirmado por el técnico):
 ${JSON.stringify(checklist, null, 2)}
 ${notasAdicionales ? `\nNOTAS ESPECÍFICAS PARA ESTE TIPO DE DOCUMENTO:\n${notasAdicionales}\n` : ""}
-Genera el documento completo en HTML siguiendo las instrucciones del sistema.`;
+Genera el documento completo en HTML siguiendo las instrucciones del sistema. Recuerda: sin portada, sin estilos, empezando por el índice.`;
 }

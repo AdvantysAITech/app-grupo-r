@@ -6,6 +6,14 @@ import { sustituirMarcadoresFoto, type MapaFotos, type Dimensiones } from "@/lib
 import { cargarReferencia } from "@/lib/documentos/referencia";
 import { buildSystemPromptDocumento, buildUserPromptDocumento } from "@/lib/documentos/prompt";
 import { DOCUMENTOS_META, documentosDisponibles } from "@/lib/documentos/tipos";
+import {
+  aplicarEstilos,
+  normalizarSaltos,
+  construirPortada,
+  CABECERA_HTML,
+  PIE_HTML,
+  opcionesDocx,
+} from "@/lib/documentos/marca";
 import { DOCUMENTOS_VALIDOS, type Checklist, type TipoDocumento } from "@/lib/checklist/types";
 
 export const runtime = "nodejs";
@@ -127,12 +135,27 @@ export async function POST(req: Request) {
   const dimensiones: Dimensiones = Object.fromEntries(
     (body.fotos ?? []).filter((f) => f.width && f.height).map((f) => [f.id, { width: f.width!, height: f.height! }])
   );
-  const { html: htmlFinal, noEncontradas } = sustituirMarcadoresFoto(htmlSinAvisos, mapaFotos, dimensiones);
+  const { html: htmlConFotos, noEncontradas } = sustituirMarcadoresFoto(htmlSinAvisos, mapaFotos, dimensiones);
+
+  // --- Identidad de marca: portada + estilos corporativos inline ---
+  // El HTML de la IA es semántico y sin estilos; aquí se le aplica la marca de Grupo R.
+  const empresa = body.checklist.visita.empresa;
+  const portada = construirPortada({
+    razonSocial: empresa.razon_social,
+    nombreComercial: empresa.nombre_comercial,
+    direccion: empresa.direccion_centro,
+    nif: empresa.nif,
+    titulo: meta.titulo,
+    anio: String(new Date(body.checklist.visita.fecha || Date.now()).getFullYear()),
+  });
+
+  const cuerpo = aplicarEstilos(normalizarSaltos(htmlConFotos));
+  const htmlFinal = portada + "\n" + cuerpo;
 
   // --- Conversión a DOCX ---
   let documentoGenerado: ArrayBuffer | Blob;
   try {
-    documentoGenerado = await HTMLtoDOCX(htmlFinal, undefined, { footer: false, pageNumber: true });
+    documentoGenerado = await HTMLtoDOCX(htmlFinal, CABECERA_HTML, opcionesDocx(meta.titulo), PIE_HTML);
   } catch (e) {
     console.error(`[generar-documento:${body.tipoDocumento}] Error convirtiendo a DOCX:`, e);
     return NextResponse.json(
