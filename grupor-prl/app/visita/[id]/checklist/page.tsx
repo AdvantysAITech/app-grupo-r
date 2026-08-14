@@ -160,9 +160,29 @@ export default function ChecklistPage() {
     async (tipos: TipoDocumento[], confirmado: Checklist, d: DatosVisita, visitaId: string) => {
       setGenerandoDocs(true);
       setErrorEnvio(null);
+
+      // Red de seguridad: si se llega aquí con fotos sin subir (checklist
+      // generado en una sesión anterior, o subida parcialmente fallida), se
+      // suben ahora. Sin esto volverían a viajar en base64 dentro del body y
+      // se superaría el límite de tamaño de la función serverless.
+      let fotos = d.fotos;
+      if (fotos.some((f) => !f.path)) {
+        try {
+          setSubiendoFotos({ hechas: 0, total: fotos.filter((f) => !f.path).length });
+          fotos = await subirFotosPendientes(visitaId, fotos, (hechas, total) => setSubiendoFotos({ hechas, total }));
+          await guardarDatosVisita({ ...d, fotos });
+          setDatos({ ...d, fotos });
+        } catch (e) {
+          console.error("[documentos] Error subiendo fotos:", e);
+          // No se aborta: resolverFotos() usará el base64 inline como respaldo.
+        } finally {
+          setSubiendoFotos(null);
+        }
+      }
+
       let huboError = false;
       for (const tipo of tipos) {
-        const ok = await generarDocumento(tipo, confirmado, d.fotos, visitaId);
+        const ok = await generarDocumento(tipo, confirmado, fotos, visitaId);
         if (!ok) huboError = true;
       }
       setGenerandoDocs(false);
@@ -314,6 +334,7 @@ export default function ChecklistPage() {
           orden={checklist.documentos_solicitados}
           estados={estadoDocs}
           generando={generandoDocs}
+          subiendoFotos={subiendoFotos}
           enviando={enviando}
           enviado={enviado}
           errorEnvio={errorEnvio}
@@ -582,11 +603,12 @@ const COLOR_FASE: Record<EstadoDoc["fase"], string> = {
  * y el email se enviaría incompleto.
  */
 function ModalDocumentos({
-  orden, estados, generando, enviando, enviado, errorEnvio, onEnviar, onReintentar, onCerrar,
+  orden, estados, generando, subiendoFotos, enviando, enviado, errorEnvio, onEnviar, onReintentar, onCerrar,
 }: {
   orden: TipoDocumento[];
   estados: Record<string, EstadoDoc>;
   generando: boolean;
+  subiendoFotos: { hechas: number; total: number } | null;
   enviando: boolean;
   enviado: boolean;
   errorEnvio: string | null;
@@ -639,6 +661,12 @@ function ModalDocumentos({
               ? "Se han enviado por email con todos los adjuntos."
               : `${completados} de ${orden.length} generados${fallidos > 0 ? `, ${fallidos} con error` : ""}.`}
         </p>
+
+        {subiendoFotos && (
+          <p style={{ color: "#1d4ed8", fontSize: "0.82rem", margin: "0 0 0.8rem" }}>
+            Subiendo fotografías: {subiendoFotos.hechas} de {subiendoFotos.total}…
+          </p>
+        )}
 
         {generando && <div style={{ marginBottom: "1rem" }}><BarraIndeterminada /></div>}
 
