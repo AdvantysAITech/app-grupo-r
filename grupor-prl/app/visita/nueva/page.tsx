@@ -39,6 +39,32 @@ async function redimensionar(file: File): Promise<{ base64: string; mime: string
 
 const vacioANull = (s: string) => (s.trim() ? s.trim() : null);
 
+const card: React.CSSProperties = { border: "1px solid #e5e7eb", borderRadius: 12, padding: "1.15rem", marginBottom: "1rem" };
+const label: React.CSSProperties = { display: "block", fontWeight: 600, marginBottom: "0.6rem", fontSize: "0.95rem" };
+const inputStyle: React.CSSProperties = { width: "100%", padding: "0.6rem", borderRadius: 8, border: "1px solid #d1d5db" };
+const miniLabel: React.CSSProperties = { fontSize: "0.8rem", color: "#6b7280", display: "block", marginBottom: "0.3rem" };
+
+/**
+ * Campo de texto etiquetado.
+ *
+ * IMPORTANTE: debe declararse FUERA de NuevaVisitaPage. Si se define dentro,
+ * cada render crea un tipo de componente distinto, React desmonta y vuelve a
+ * montar el <input>, y este pierde el foco en cada pulsación — en móvil se
+ * cierra el teclado tras cada letra.
+ */
+function Campo({ etiqueta, valor, onChange, placeholder, tipo = "text", requerido = false }: {
+  etiqueta: string; valor: string; onChange: (v: string) => void;
+  placeholder?: string; tipo?: string; requerido?: boolean;
+}) {
+  return (
+    <div>
+      <label style={miniLabel}>{etiqueta}{requerido && <span style={{ color: "#b91c1c" }}> *</span>}</label>
+      <input type={tipo} value={valor} onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder} style={inputStyle} />
+    </div>
+  );
+}
+
 export default function NuevaVisitaPage() {
   const router = useRouter();
 
@@ -215,22 +241,6 @@ export default function NuevaVisitaPage() {
       setGuardando(false);
     }
   }
-
-  const card: React.CSSProperties = { border: "1px solid #e5e7eb", borderRadius: 12, padding: "1.15rem", marginBottom: "1rem" };
-  const label: React.CSSProperties = { display: "block", fontWeight: 600, marginBottom: "0.6rem", fontSize: "0.95rem" };
-  const inputStyle: React.CSSProperties = { width: "100%", padding: "0.6rem", borderRadius: 8, border: "1px solid #d1d5db" };
-  const miniLabel: React.CSSProperties = { fontSize: "0.8rem", color: "#6b7280", display: "block", marginBottom: "0.3rem" };
-
-  const Campo = ({ etiqueta, valor, onChange, placeholder, tipo = "text", requerido = false }: {
-    etiqueta: string; valor: string; onChange: (v: string) => void;
-    placeholder?: string; tipo?: string; requerido?: boolean;
-  }) => (
-    <div>
-      <label style={miniLabel}>{etiqueta}{requerido && <span style={{ color: "#b91c1c" }}> *</span>}</label>
-      <input type={tipo} value={valor} onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder} style={inputStyle} />
-    </div>
-  );
 
   return (
     <main style={{ maxWidth: 720, margin: "0 auto", padding: "2rem 1.25rem" }}>
