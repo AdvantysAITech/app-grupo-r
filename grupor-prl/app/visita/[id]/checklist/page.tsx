@@ -45,10 +45,13 @@ export default function ChecklistPage() {
           tipoVisita: d.tipoVisita,
           empresa: {
             ghlId: d.empresa.ghlId,
-            razonSocial: d.empresa.nombre,
+            razonSocial: d.empresa.razonSocial,
+            nombreComercial: d.empresa.nombreComercial,
             nif: d.empresa.nif,
-            direccion: d.empresa.direccion,
+            cnae: d.empresa.cnae,
             actividad: d.empresa.actividad,
+            direccionFiscal: d.empresa.direccionFiscal,
+            centro: d.empresa.centro,
           },
           sector: v.sector,
           sectorOtro: v.sectorOtro,
@@ -192,6 +195,7 @@ export default function ChecklistPage() {
       <header style={{ margin: "0.75rem 0 1.5rem" }}>
         <h1 style={{ fontSize: "1.5rem", fontWeight: 700, margin: 0 }}>{visita.empresaNombre}</h1>
         <p style={{ color: "#6b7280", margin: "0.3rem 0 0", fontSize: "0.9rem" }}>
+          {visita.centroNombre ? `${visita.centroNombre} · ` : ""}
           {nombreSector(visita.sector, visita.sectorOtro)} · Checklist generado por IA — revisa y confirma
         </p>
       </header>
