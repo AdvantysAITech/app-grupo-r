@@ -27,6 +27,15 @@ Cada imagen que recibas va precedida de un bloque de texto con su identificador 
 [[FOTO:identificador|pie de foto de una frase que describa el hallazgo y su implicación preventiva]]
 No uses etiquetas <img> ni inventes identificadores que no se te hayan dado.
 
+## Anexos — distingue dos casos
+Los documentos de referencia terminan con anexos. NO los trates todos igual: antes de escribir "Pendiente de aportar" en un anexo, comprueba de cuál de estos dos tipos es.
+
+(a) Anexos que dependen de datos externos que nadie te ha facilitado — relación nominal de personal (nombres, DNI, categoría), registros de formación impartida, certificados, protocolos firmados. Aquí SÍ corresponde dejar la estructura vacía: reproduce la tabla del ejemplo de referencia con sus columnas y con tantas filas como trabajadores tenga el centro, rellenas con "Pendiente de confirmar". Nunca inventes nombres ni DNI: el documento tiene efectos legales.
+
+(b) Anexos que se derivan de contenido que TÚ MISMO ya has redactado en este documento. Estos hay que RELLENARLOS, no diferirlos. En particular, el Programa anual de la actividad preventiva se construye a partir de las medidas del apartado de Planificación de la Prevención de este mismo documento: preséntalo como tabla con la actividad preventiva, el responsable, el plazo o mes previsto y su prioridad, tomando una fila por cada medida planificada. Escribir "Pendiente de elaborar" en un anexo cuya información ya está en el documento es un error.
+
+Caso aparte: la Memoria anual de la actividad preventiva solo puede redactarse al cierre del ejercicio. En una visita inicial no hay actividad previa que memorizar, así que indica expresamente que se elaborará al cierre del primer ejercicio y por qué — no lo dejes como un simple "pendiente" sin explicación.
+
 ## Avisos
 Si detectas una contradicción entre fuentes o un dato importante ausente, empieza tu respuesta con este bloque exacto (HTML válido, no markdown): <!--AVISOS--><ul><li>primer aviso</li><li>segundo aviso</li></ul><!--FIN_AVISOS--> — inmediatamente seguido del documento. Si no hay avisos que reportar, omite este bloque por completo y empieza directamente con el documento.
 
