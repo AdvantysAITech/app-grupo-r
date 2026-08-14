@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { cargarTecnicos } from "@/lib/tecnicos";
 
 export const runtime = "nodejs";
+export const preferredRegion = "cdg1"; // París: cerca de los técnicos y del bucket de Supabase en la UE
 
 const HASH_DUMMY = bcrypt.hashSync("dummy-" + Math.random().toString(36), 10);
 

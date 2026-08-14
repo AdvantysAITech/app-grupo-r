@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getTecnicoId } from "@/lib/auth";
 
 export const runtime = "nodejs";
+export const preferredRegion = "cdg1"; // París: cerca de los técnicos y del bucket de Supabase en la UE
 
 const BUCKET = "documentos-visitas";
 const CADUCIDAD_SEGUNDOS = 60 * 60; // 1 hora

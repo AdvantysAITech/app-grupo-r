@@ -8,7 +8,8 @@ import { buscarTecnicoPublico } from "@/lib/tecnicos";
 import { carpetaFotos } from "@/lib/fotos/rutas";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const preferredRegion = "cdg1"; // París: cerca de los técnicos y del bucket de Supabase en la UE
+export const maxDuration = 120; // adjuntar varios DOCX y enviarlos por Gmail
 
 type BodyEntrada = { visitaId: string; empresaNombre?: string };
 

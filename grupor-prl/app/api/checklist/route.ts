@@ -13,7 +13,8 @@ import { documentosDisponibles } from "@/lib/documentos/tipos";
 import { resolverFotos, type FotoReferencia } from "@/lib/fotos/servidor";
 
 export const runtime = "nodejs";
-export const maxDuration = 120; // varias imágenes + JSON grande puede tardar
+export const preferredRegion = "cdg1"; // París: cerca de los técnicos y del bucket de Supabase en la UE
+export const maxDuration = 300; // transcripción + visión con hasta 20 fotos; 120 s se agotaban
 
 // Las fotos llegan como referencia al bucket, no como bytes en el body.
 type FotoEntrada = FotoReferencia;

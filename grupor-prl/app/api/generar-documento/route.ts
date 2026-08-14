@@ -18,7 +18,8 @@ import { DOCUMENTOS_VALIDOS, type Checklist, type TipoDocumento } from "@/lib/ch
 import { resolverFotos, type FotoReferencia } from "@/lib/fotos/servidor";
 
 export const runtime = "nodejs";
-export const maxDuration = 180;
+export const preferredRegion = "cdg1"; // París: cerca de los técnicos y del bucket de Supabase en la UE
+export const maxDuration = 300; // el Plan de Prevención con PDF de referencia de 72 págs supera los 180 s
 
 // Referencias al bucket; los bytes se descargan en el servidor.
 type FotoEntrada = FotoReferencia;

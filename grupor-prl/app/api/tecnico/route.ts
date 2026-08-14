@@ -4,6 +4,7 @@ import { getTecnicoId } from "@/lib/auth";
 import { buscarTecnicoPublico } from "@/lib/tecnicos";
 
 export const runtime = "nodejs";
+export const preferredRegion = "cdg1"; // París: cerca de los técnicos y del bucket de Supabase en la UE
 
 export async function GET() {
   const usuario = await getTecnicoId();

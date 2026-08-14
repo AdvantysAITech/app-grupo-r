@@ -5,6 +5,7 @@ import { getTecnicoId } from "@/lib/auth";
 import { BUCKET_DOCUMENTOS, rutaFoto } from "@/lib/fotos/rutas";
 
 export const runtime = "nodejs";
+export const preferredRegion = "cdg1"; // París: cerca de los técnicos y del bucket de Supabase en la UE
 
 type BodyEntrada = { visitaId: string; fotos: { id: string; mime: string }[] };
 
